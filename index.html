@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#07110C">
 <meta name="description" content="BioVolt AI: prototipo de plataforma de gestión sostenible con asistente de IA y mesa de ayuda.">
 <title>BioVolt AI · Plataforma de gestión sostenible</title>
 <script>
@@ -481,10 +481,79 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
 }
+
+/* =====================================================================
+   TEMA VERDE (sobrescribe tokens; el diseño glass y minimalista se conserva)
+   ===================================================================== */
+:root{--background:#07110C;--surface:#07110C;--on-surface:#EAF3EC;--on-surface-variant:#B4C7BA;--surface-container-low:#112019;--surface-hover:#1B3025;--field-bg:#07110C;--outline:rgba(200,255,220,.16);--primary:#178348;--primary-hover:#1A9453;--primary-active:#136C3B;--secondary:#1A9453;--tertiary:#5FD18B;--accent-text:#6FD99A;--ghost-text:#6FD99A;--focus:#6FD99A;--nav-bg:rgba(7,17,12,.6);--info-bg:rgba(95,209,139,.14);--grad:linear-gradient(90deg,#B9EBC7,#6FD99A,#2FB36A);--glass-bg:rgba(17,32,25,.58);--glass-strong:rgba(17,32,25,.86);--plant:#6FD99A}
+:root[data-theme="light"]{--background:#F6FAF7;--surface:#F6FAF7;--on-surface:#14201A;--on-surface-variant:#5A6E62;--surface-container-low:#EAF3ED;--surface-hover:#DCEBE1;--field-bg:#FFFFFF;--outline:rgba(20,60,35,.18);--tertiary:#2FA564;--accent-text:#13794A;--ghost-text:#13794A;--focus:#178348;--nav-bg:rgba(246,250,247,.72);--info-bg:rgba(23,131,72,.10);--grad:linear-gradient(90deg,#2FB36A,#178348,#0F5C34);--glass-bg:rgba(236,246,240,.62);--glass-strong:rgba(246,250,247,.9);--plant:#178348}
+.liquid-bg i:nth-child(1){background:#1F9D55}
+.liquid-bg i:nth-child(2){background:#5FD18B}
+.liquid-bg i:nth-child(3){background:#A8E6B8}
+.liquid-bg i:nth-child(4){background:#F2D16B}
+.goo i{background:linear-gradient(135deg,#A8E6B8,#1F9D55)}
+.brand-mark{background:linear-gradient(135deg,#34B36B,#178348)}
+
+/* Plantas de línea mínima (se dibujan una sola vez al cargar) */
+.plant{position:absolute;color:var(--plant);fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#p-sprig path,#p-sprout path{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 2.6s cubic-bezier(.4,0,.2,1) .2s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.hero-plants{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.hero-plants .pl{left:max(-6px,calc(50% - 580px));bottom:-8px;width:clamp(80px,15vw,190px);height:auto;opacity:.18}
+.hero-plants .pr{right:max(-6px,calc(50% - 580px));bottom:-8px;width:clamp(60px,11vw,140px);height:auto;opacity:.14;transform:scaleX(-1)}
+@media(min-width:734px){.hero-plants .pl{opacity:.5}.hero-plants .pr{opacity:.38}}
+.footer{position:relative;overflow:hidden}
+.footer-plants{position:absolute;inset:0;pointer-events:none}
+.footer-plants .plant{bottom:-4px;height:auto;opacity:.28}
+.footer-plants .f1{right:3%;width:74px}
+.footer-plants .f2{right:11%;width:48px}
+.footer-plants .f3{right:17%;width:60px}
+
+/* Yuca de hojas largas con sombra suave (inicio) */
+:root{--y1:#2E7A4D;--y2:#6FD99A;--tr:#6B5864}
+:root[data-theme="light"]{--y1:#3D6F50;--y2:#8CC79F;--tr:#D9C0C7}
+.y1{fill:var(--y1);stroke:none}.y2{fill:var(--y2);stroke:none}.tr{fill:var(--tr);stroke:none}
+.hero-plants .py{right:-34px;bottom:-24px;width:clamp(120px,24vw,300px);height:auto;--o:.4;animation:fadein 1.8s ease .3s both}
+.hero-plants .py.sh{right:8px;bottom:-40px;filter:blur(9px);--y1:#03100A;--y2:#03100A;--tr:#03100A;--o:.32}
+:root[data-theme="light"] .hero-plants .py.sh{--y1:#2A4A36;--y2:#2A4A36;--tr:#2A4A36;--o:.16}
+@media(min-width:734px){.hero-plants .py{--o:.95}.hero-plants .py.sh{--o:.32}:root[data-theme="light"] .hero-plants .py.sh{--o:.16}}
+@keyframes fadein{from{opacity:0}to{opacity:var(--o)}}
+
+/* Nubes suaves (fondo del inicio) */
+:root{--cloud:rgba(220,255,235,.09);--cloud-edge:rgba(220,255,235,.24)}
+:root[data-theme="light"]{--cloud:rgba(255,255,255,.8);--cloud-edge:rgba(23,131,72,.16)}
+.cloud{fill:var(--cloud);stroke:var(--cloud-edge);stroke-width:1;vector-effect:non-scaling-stroke}
+.hero-clouds{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.hero-clouds .plant{height:auto;fill:none;animation:drift 50s ease-in-out infinite alternate}
+.hero-clouds .c1{top:5%;left:5%;width:clamp(90px,14vw,190px)}
+.hero-clouds .c2{top:20%;right:20%;width:clamp(70px,10vw,140px);animation-duration:64s;animation-direction:alternate-reverse}
+.hero-clouds .c3{top:58%;left:17%;width:clamp(70px,9vw,120px);animation-duration:72s}
+@keyframes drift{to{transform:translateX(44px)}}
+/* Más plantas de línea */
+.hero-plants .ps1,.hero-plants .ps2{display:none;height:auto;bottom:-8px}
+@media(min-width:900px){.hero-plants .ps1,.hero-plants .ps2{display:block}}
+.hero-plants .ps1{left:calc(50% - 560px + 190px);width:46px;opacity:.5}
+.hero-plants .ps2{left:calc(50% - 560px + 232px);width:32px;opacity:.38}
+#modulos,#faq,.view .container{position:relative}
+.sec-deco,.view-deco{position:absolute;z-index:-1;pointer-events:none;height:120px;width:130px}
+.sec-deco{top:24px}.sec-deco.r{right:var(--page-margin)}.sec-deco.l{left:var(--page-margin);transform:scaleX(-1)}
+.view-deco{top:-6px;right:calc(var(--page-margin) + 190px)}
+.sec-deco .plant,.view-deco .plant{bottom:0;height:auto}
+.d1{right:0;width:62px;opacity:.4}.d2{right:56px;width:42px;opacity:.32}.d3{right:92px;width:32px;opacity:.26}
+@media(max-width:733px){.sec-deco{display:none}}@media(max-width:899px){.view-deco{display:none}}
 </style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23178348'/%3E%3Cpath d='M16 26V12M16 18c-5 0-8-3-8-8 5 0 8 3 8 8zm0-3c4 0 7-2 7-7-4 0-7 2-7 7z' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <symbol id="p-sprig" viewBox="0 0 120 200"><path pathLength="1" d="M60 196C58 140 62 90 60 14"/><path pathLength="1" d="M60 160C84 158 100 142 102 122C80 124 62 138 60 160Z"/><path pathLength="1" d="M60 128C36 126 20 110 18 90C40 92 58 106 60 128Z"/><path pathLength="1" d="M60 96C82 94 96 80 98 62C78 64 62 76 60 96Z"/><path pathLength="1" d="M60 66C42 64 30 52 28 36C44 38 58 48 60 66Z"/><path pathLength="1" d="M60 14C70 24 72 38 60 52C48 38 50 24 60 14Z"/></symbol>
+  <symbol id="p-yucca" viewBox="0 0 200 262"><path class="tr" d="M91 130C90 170 88 215 86 262L114 262C112 215 110 170 109 130Z"/><path class="y1" d="M100.0 132.0Q57.5 118.7 10.7 131.7Q53.2 136.2 100.0 132.0Z"/><path class="y2" d="M100.0 132.0Q57.8 98.0 5.0 86.6Q47.2 115.0 100.0 132.0Z"/><path class="y1" d="M100.0 132.0Q68.5 81.2 21.6 46.5Q53.1 94.1 100.0 132.0Z"/><path class="y2" d="M100.0 132.0Q86.2 74.8 55.8 25.6Q69.6 81.6 100.0 132.0Z"/><path class="y1" d="M100.0 132.0Q104.7 69.5 91.4 8.3Q86.7 70.8 100.0 132.0Z"/><path class="y2" d="M100.0 132.0Q123.0 77.8 128.5 20.5Q105.5 73.5 100.0 132.0Z"/><path class="y1" d="M100.0 132.0Q140.8 88.0 164.7 36.5Q123.8 77.4 100.0 132.0Z"/><path class="y2" d="M100.0 132.0Q149.3 107.9 185.8 74.0Q136.5 92.5 100.0 132.0Z"/><path class="y1" d="M100.0 132.0Q146.0 129.7 185.3 119.5Q139.3 113.0 100.0 132.0Z"/><path class="y2" d="M100.0 132.0Q109.7 82.3 103.5 32.1Q93.7 81.8 100.0 132.0Z"/><path class="y1" d="M100.0 132.0Q84.5 85.9 54.9 47.2Q70.4 93.4 100.0 132.0Z"/></symbol>
+  <symbol id="p-cloud" viewBox="0 0 200 80"><path class="cloud" d="M40 70C14 70 6 48 26 40C26 20 52 12 66 28C74 8 112 6 122 30C140 18 168 28 166 48C186 50 190 70 168 70Z"/></symbol>
+  <symbol id="p-sprout" viewBox="0 0 100 100"><path pathLength="1" d="M50 96C50 76 50 62 50 50"/><path pathLength="1" d="M50 58C30 60 14 48 12 28C34 28 48 40 50 58Z"/><path pathLength="1" d="M50 50C70 52 86 40 88 20C66 20 52 32 50 50Z"/></symbol>
+</defs></svg>
+
 
 <!-- Filtro "gooey": fusiona las gotas del hero -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -498,7 +567,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ NAVEGACIÓN ============================ -->
 <header class="nav" id="siteNav">
   <div class="container nav-inner">
-    <a class="brand" href="#/inicio" aria-label="BioVolt, ir al inicio"><span class="brand-mark" aria-hidden="true">B</span>BioVolt</a>
+    <a class="brand" href="#/inicio" aria-label="BioVolt, ir al inicio"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span>BioVolt</a>
     <nav class="nav-links" id="navLinks" aria-label="Principal">
       <span class="nav-liquid" id="navLiquid" aria-hidden="true"></span>
       <a href="#/inicio" data-route="inicio">Inicio</a>
@@ -525,6 +594,8 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <div class="view" data-view="inicio" id="view-inicio" style="padding-top:0">
   <section class="container hero" aria-labelledby="heroTitle">
     <div class="hero-liquid" aria-hidden="true"><div class="goo"><i></i><i></i><i></i><i></i></div></div>
+    <div class="hero-clouds" aria-hidden="true"><svg class="plant c1" viewBox="0 0 200 80"><use href="#p-cloud"/></svg><svg class="plant c2" viewBox="0 0 200 80"><use href="#p-cloud"/></svg><svg class="plant c3" viewBox="0 0 200 80"><use href="#p-cloud"/></svg></div>
+    <div class="hero-plants" aria-hidden="true"><svg class="plant pl" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant ps1" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant ps2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant py sh" viewBox="0 0 200 262"><use href="#p-yucca"/></svg><svg class="plant py" viewBox="0 0 200 262"><use href="#p-yucca"/></svg></div>
     <span class="hero-tag"><span class="dot" aria-hidden="true"></span>Plataforma de gestión sostenible · Entorno de prueba</span>
     <h1 class="display" id="heroTitle">La energía de una gestión <span class="grad-text">inteligente.</span></h1>
     <p class="lead">Transformamos residuos en oportunidades. Monitorea la operación, coordina solicitudes y convierte los datos de BioVolt en información útil para decidir mejor.</p>
@@ -573,11 +644,14 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
   </section>
 
   <section class="container section" id="modulos" aria-labelledby="modTitle">
+    <div class="sec-deco r" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="section-head"><p class="eyebrow">Módulos</p><h2 class="h-lg" id="modTitle">Todo BioVolt, en un solo lugar.</h2><p class="lead">La base de datos cubre áreas operativas, administrativas y ambientales. Estos son los módulos del sistema.</p></div>
     <div class="grid module-grid" id="moduleGrid"></div>
   </section>
 
   <section class="container section" id="faq" aria-labelledby="faqTitle">
+    <div class="sec-deco r" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
+    <div class="sec-deco l" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="section-head" style="margin-inline:auto;text-align:center"><p class="eyebrow">Preguntas frecuentes</p><h2 class="h-lg" id="faqTitle">Lo que suelen preguntar.</h2></div>
     <div class="faq" id="faqList"></div>
   </section>
@@ -586,6 +660,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ OPERACIONES ============================ -->
 <div class="view" data-view="operaciones" id="view-operaciones" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Gestión empresarial</p><h1 class="h-lg">Operaciones</h1><p class="lead">Una lectura rápida de los procesos centrales registrados en la base de datos.</p></div></div>
     <div class="grid stats">
       <article class="card"><div class="stat-top"><span>Producción</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="production">—</div><p class="small muted">Registros de producción</p></article>
@@ -605,6 +680,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ INVENTARIO ============================ -->
 <div class="view" data-view="inventario" id="view-inventario" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Recursos y abastecimiento</p><h1 class="h-lg">Inventario y biomasa</h1><p class="lead">Consulta la biomasa registrada y su disponibilidad en almacenes.</p></div></div>
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Los datos son una muestra local, aún no sincronizada con MySQL.</span></div>
     <div class="toolbar">
@@ -623,6 +699,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ PLANTAS ============================ -->
 <div class="view" data-view="plantas" id="view-plantas" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Infraestructura</p><h1 class="h-lg">Plantas BioVolt</h1><p class="lead">Ubicación, capacidad y estado de las instalaciones registradas.</p></div></div>
     <div class="toolbar"><div class="chips" role="group" aria-label="Filtrar plantas por estado" id="plantFilters"></div></div>
     <div class="grid module-grid" id="plantCards"></div>
@@ -632,6 +709,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ DIRECTORIO ============================ -->
 <div class="view" data-view="directorio" id="view-directorio" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Relaciones empresariales</p><h1 class="h-lg">Directorio</h1><p class="lead">Consulta de clientes y proveedores registrados en BioVolt.</p></div></div>
     <div class="toolbar">
       <div class="chips" role="tablist" aria-label="Tipo de directorio">
@@ -653,6 +731,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ ANALÍTICA ============================ -->
 <div class="view" data-view="analitica" id="view-analitica" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Analítica asistida</p><h1 class="h-lg">Analítica inteligente</h1><p class="lead">Indicadores calculados a partir de los registros incluidos en el respaldo SQL.</p></div></div>
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Los valores son agregados de datos de ejemplo. No representan cifras en tiempo real ni predicciones de un modelo entrenado.</span></div>
     <div class="grid stats">
@@ -671,6 +750,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ MESA DE AYUDA ============================ -->
 <div class="view" data-view="ayuda" id="view-ayuda" hidden>
   <div class="container">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head">
       <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
       <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
@@ -713,16 +793,17 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 <!-- ============================ ASISTENTE IA ============================ -->
 <div class="view" data-view="asistente" id="view-asistente" hidden>
   <div class="container" style="max-width:900px">
+    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Inteligencia artificial aplicada</p><h1 class="h-lg">BioVolt Assistant</h1><p class="lead">Un punto de consulta para conocer los procesos y la información general de BioVolt.</p></div></div>
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini). Los indicadores de la página son datos de demostración y el asistente no tiene acceso a la base de datos en tiempo real.</span></div>
     <section class="card chat" aria-label="Chat con BioVolt Assistant">
       <div class="chat-head">
-        <div class="chat-id"><span class="ico-circle" data-icon="sparkles"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
+        <div class="chat-id"><span class="ico-circle" data-icon="leaf"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
         <button class="btn btn-ghost btn-sm" type="button" id="clearChat">Limpiar</button>
       </div>
       <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversación">
         <div class="chat-empty" id="chatEmpty">
-          <span class="ico-circle" data-icon="sparkles" data-size="28"></span>
+          <span class="ico-circle" data-icon="leaf" data-size="28"></span>
           <h3 class="h-sm" style="font-size:24px">Hola, soy BioVolt Assistant.</h3>
           <p>Puedo orientarte sobre biomasa, plantas, inventario, producción, clientes y soporte. ¿Qué te gustaría consultar?</p>
         </div>
@@ -743,6 +824,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 
 <!-- ============================ PIE DE PÁGINA ============================ -->
 <footer class="footer">
+  <div class="footer-plants" aria-hidden="true"><svg class="plant f1" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant f2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant f3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
   <div class="container">
     <div class="footer-cols">
       <div><h4>BioVolt AI</h4><p>Prototipo de plataforma de gestión sostenible para biomasa y energía. Datos de muestra tomados del respaldo SQL.</p></div>
@@ -901,7 +983,7 @@ function emptyState(el, ico, title, text, btnLabel, btnFn){
    ===================================================================== */
 function applyTheme(t, persist){
   document.documentElement.setAttribute('data-theme', t);
-  $('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#ffffff' : '#000000');
+  $('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#F6FAF7' : '#07110C');
   const b = $('#themeBtn');
   b.innerHTML = icon(t === 'light' ? 'moon' : 'sun', 18);
   b.setAttribute('aria-label', t === 'light' ? 'Activar modo oscuro' : 'Activar modo claro');
