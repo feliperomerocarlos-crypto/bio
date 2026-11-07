@@ -596,7 +596,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
     <div class="hero-liquid" aria-hidden="true"><div class="goo"><i></i><i></i><i></i><i></i></div></div>
     <div class="hero-clouds" aria-hidden="true"><svg class="plant c1" viewBox="0 0 200 80"><use href="#p-cloud"/></svg><svg class="plant c2" viewBox="0 0 200 80"><use href="#p-cloud"/></svg><svg class="plant c3" viewBox="0 0 200 80"><use href="#p-cloud"/></svg></div>
     <div class="hero-plants" aria-hidden="true"><svg class="plant pl" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant ps1" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant ps2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant py sh" viewBox="0 0 200 262"><use href="#p-yucca"/></svg><svg class="plant py" viewBox="0 0 200 262"><use href="#p-yucca"/></svg></div>
-    <span class="hero-tag"><span class="dot" aria-hidden="true"></span>Plataforma de gestión sostenible · Entorno de prueba</span>
+    <span class="hero-tag"><span class="dot" aria-hidden="true"></span><span id="dataStatus">Plataforma de gestión sostenible · Cargando datos…</span></span>
     <h1 class="display" id="heroTitle">La energía de una gestión <span class="grad-text">inteligente.</span></h1>
     <p class="lead">Transformamos residuos en oportunidades. Monitorea la operación, coordina solicitudes y convierte los datos de BioVolt en información útil para decidir mejor.</p>
     <div class="hero-actions">
@@ -615,7 +615,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 
     <div class="grid two-col mt">
       <article class="card">
-        <div class="card-head"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Primeros ocho registros del respaldo</p></div><span class="pill pill-info pill-plain">kWh</span></div>
+        <div class="card-head"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Últimos ocho registros de la base de datos</p></div><span class="pill pill-info pill-plain">kWh</span></div>
         <div class="chart" id="productionChart" role="img" aria-label="Gráfico de barras de producción"></div>
       </article>
       <article class="card">
@@ -669,7 +669,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
       <article class="card"><div class="stat-top"><span>Proveedores</span><span class="ico-circle" data-icon="truck"></span></div><div class="stat-value" data-bind="providers">—</div><p class="small muted">Abastecimiento activo</p></article>
     </div>
     <article class="card flush mt">
-      <div class="card-head" style="padding:var(--lg) var(--lg) 0;margin-bottom:var(--sm)"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Muestra de registros del respaldo</p></div><span class="pill pill-muted pill-plain">Muestra</span></div>
+      <div class="card-head" style="padding:var(--lg) var(--lg) 0;margin-bottom:var(--sm)"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Últimos registros de la base de datos</p></div><span class="pill pill-muted pill-plain">Muestra</span></div>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de producción energética">
         <table><thead><tr><th scope="col">ID</th><th scope="col">Planta</th><th scope="col">Fecha</th><th scope="col">Cantidad</th><th scope="col">Unidad</th></tr></thead><tbody id="productionRows"></tbody></table>
       </div>
@@ -682,7 +682,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
   <div class="container">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Recursos y abastecimiento</p><h1 class="h-lg">Inventario y biomasa</h1><p class="lead">Consulta la biomasa registrada y su disponibilidad en almacenes.</p></div></div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Los datos son una muestra local, aún no sincronizada con MySQL.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Los datos se leen en vivo desde la base de datos de BioVolt.</span></div>
     <div class="toolbar">
       <div class="search"><span data-icon="search" data-size="18"></span><label class="sr-only" for="invSearch">Buscar biomasa</label><input class="input" id="invSearch" type="search" placeholder="Buscar biomasa o material…" autocomplete="off"></div>
       <span class="pill pill-muted pill-plain" id="invCount" aria-live="polite"></span>
@@ -733,7 +733,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
   <div class="container">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Analítica asistida</p><h1 class="h-lg">Analítica inteligente</h1><p class="lead">Indicadores calculados a partir de los registros incluidos en el respaldo SQL.</p></div></div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Los valores son agregados de datos de ejemplo. No representan cifras en tiempo real ni predicciones de un modelo entrenado.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Valores calculados con consultas de solo lectura sobre la base de datos de BioVolt. No son predicciones de un modelo entrenado.</span></div>
     <div class="grid stats">
       <article class="card"><div class="stat-top"><span>Energía registrada</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="energy">—</div><p class="small muted">Suma de cantidad (unidades mixtas en origen)</p></article>
       <article class="card"><div class="stat-top"><span>CO₂ evitado</span><span class="ico-circle" data-icon="leaf"></span></div><div class="stat-value" data-bind="co2">—</div><p class="small muted">Suma de registros ambientales</p></article>
@@ -795,7 +795,7 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
   <div class="container" style="max-width:900px">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Inteligencia artificial aplicada</p><h1 class="h-lg">BioVolt Assistant</h1><p class="lead">Un punto de consulta para conocer los procesos y la información general de BioVolt.</p></div></div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini). Los indicadores de la página son datos de demostración y el asistente no tiene acceso a la base de datos en tiempo real.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini) conectado a la base de datos de BioVolt en modo de solo lectura. Por privacidad no accede a datos personales de clientes ni empleados.</span></div>
     <section class="card chat" aria-label="Chat con BioVolt Assistant">
       <div class="chat-head">
         <div class="chat-id"><span class="ico-circle" data-icon="leaf"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
@@ -827,12 +827,12 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
   <div class="footer-plants" aria-hidden="true"><svg class="plant f1" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant f2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant f3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
   <div class="container">
     <div class="footer-cols">
-      <div><h4>BioVolt AI</h4><p>Prototipo de plataforma de gestión sostenible para biomasa y energía. Datos de muestra tomados del respaldo SQL.</p></div>
+      <div><h4>BioVolt AI</h4><p>Prototipo de plataforma de gestión sostenible para biomasa y energía. Datos leídos de la base de datos del proyecto.</p></div>
       <div><h4>Explorar</h4><a href="#/inicio">Inicio</a><a href="#/modulos">Módulos</a><a href="#/faq">Preguntas frecuentes</a></div>
       <div><h4>Operación</h4><a href="#/operaciones">Operaciones</a><a href="#/inventario">Inventario</a><a href="#/plantas">Plantas</a></div>
       <div><h4>Soporte</h4><a href="#/ayuda">Mesa de ayuda</a><a href="#/asistente">Asistente IA</a><a href="#/directorio">Directorio</a></div>
     </div>
-    <p class="footer-bottom">BioVolt AI · Concepto 2026 · Entorno de demostración: la información mostrada no representa cifras operativas en tiempo real.</p>
+    <p class="footer-bottom">BioVolt AI · Concepto 2026 · Proyecto académico: los datos provienen de la base de datos del proyecto.</p>
   </div>
 </footer>
 
@@ -1065,7 +1065,7 @@ function bindStats(){
   $$('[data-bind]').forEach(el => { el.textContent = map[el.dataset.bind] ?? '—'; });
 }
 const plantName = id => (DB.plants.find(p => p.id_planta === id) || {}).nombre || '—';
-const maxCap = Math.max(...DB.plants.map(p => +p.capacidad));
+let maxCap = Math.max(...DB.plants.map(p => +p.capacidad));
 
 function renderChart(){
   const rows = DB.productionRows.slice(0, 8), max = Math.max(...rows.map(r => +r.cantidad));
@@ -1098,7 +1098,7 @@ function renderModules(){
 }
 const FAQ = [
   ['¿Qué es BioVolt AI?','Es un prototipo de plataforma para gestionar la operación de BioVolt: plantas, biomasa, inventario, producción, directorio, soporte y un asistente conversacional.'],
-  ['¿Los datos son reales?','No. Son una muestra tomada del respaldo SQL de BioVolt y sirven para probar la interfaz. No representan cifras operativas en tiempo real.'],
+  ['¿De dónde salen los datos?','De la base de datos del proyecto, que se consulta en modo de solo lectura. Por privacidad no se publican datos personales de clientes ni empleados.'],
   ['¿Cómo registro una solicitud de soporte?','Entra a Mesa de ayuda, completa el formulario (nombre, correo, asunto, categoría, prioridad y descripción) y envíalo. Podrás verla en el listado, abrir su detalle y cambiar su estado.'],
   ['¿Dónde se guardan las solicitudes?','En el almacenamiento local de este navegador (localStorage). Si borras los datos del sitio o abres la página en otro navegador, no aparecerán. Una fase posterior las guardará en MySQL.'],
   ['¿El asistente usa inteligencia artificial real?','Sí. Las preguntas se envían a un modelo de IA generativa a través de una función segura del servidor. Si el servicio no está disponible, responde con una base de conocimiento local.'],
@@ -1131,7 +1131,7 @@ function renderInventory(q = ''){
   $('#invRows').innerHTML = arr.map(b => {
     const inv = DB.inventory.find(i => i.id_biomasa === b.id_biomasa);
     const pct = inv ? Math.min(100, +inv.stock / +b.cantidad * 100).toFixed(0) : 0;
-    return `<tr><td><b>${esc(b.nombre)}</b></td><td>#${esc(b.id_biomasa)}</td><td>Tipo ${esc(b.id_tipo)}</td><td>${nf.format(b.cantidad)} ${esc(b.unidad)}</td>
+    return `<tr><td><b>${esc(b.nombre)}</b></td><td>#${esc(b.id_biomasa)}</td><td>${esc(b.tipo || ('Tipo ' + b.id_tipo))}</td><td>${nf.format(b.cantidad)} ${esc(b.unidad)}</td>
       <td>${inv ? '#' + esc(inv.id_almacen) : '—'}</td>
       <td>${inv ? nf.format(inv.stock) + ' ' + esc(b.unidad) : '—'}<div class="track" style="margin-top:6px;min-width:90px"><span style="width:${pct}%"></span></div></td></tr>`;
   }).join('');
@@ -1159,7 +1159,7 @@ function renderDirectory(){
   $('#dirIdHead').textContent = dirMode === 'clients' ? 'Documento' : 'NIT';
   $('#dirRows').innerHTML = arr.map(x => `<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.documento || x.nit)}</td><td>${esc(x.telefono || '—')}</td><td>${esc(x.email || '—')}</td><td>${esc(x.direccion || '—')}</td></tr>`).join('');
   const total = dirMode === 'clients' ? DB.stats.clients : DB.stats.providers;
-  $('#dirNote').textContent = 'Mostrando ' + arr.length + ' de ' + all.length + ' registros de muestra (la base completa tiene ' + nf.format(total) + ').';
+  $('#dirNote').textContent = 'Mostrando ' + arr.length + ' de ' + all.length + ' registros de muestra (la base completa tiene ' + nf.format(total) + '). Por privacidad, el directorio no publica datos reales.';
   $('#dirRows').closest('.table-wrap').hidden = !arr.length;
   const empty = $('#dirEmpty');
   if (!arr.length) emptyState(empty, 'search', 'Sin resultados', 'No hay ' + (dirMode === 'clients' ? 'clientes' : 'proveedores') + ' con ese nombre.', 'Limpiar búsqueda', () => { $('#dirSearch').value = ''; renderDirectory(); $('#dirSearch').focus(); });
@@ -1464,6 +1464,34 @@ applyTheme(document.documentElement.dataset.theme || 'dark', false);
 setMenu(false);
 bindStats(); renderHome(); renderOperations(); renderInventory(); renderPlants(); setDir('clients'); renderTickets(); renderAnalytics();
 route();
+
+/* =====================================================================
+   DATOS EN VIVO desde /api/data (si falla, se mantienen los de muestra)
+   ===================================================================== */
+function setStatus(txt){ const el = $('#dataStatus'); if (el) el.textContent = txt; }
+async function loadLive(){
+  try {
+    const res = await fetch('/api/data', { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d.stats || !Array.isArray(d.plants) || !d.plants.length) throw new Error('Respuesta incompleta');
+    DB.stats = Object.assign({}, DB.stats, d.stats);
+    DB.plants = d.plants;
+    if (d.productionRows && d.productionRows.length) DB.productionRows = d.productionRows;
+    if (d.biomass && d.biomass.length) DB.biomass = d.biomass;
+    if (d.inventory && d.inventory.length) DB.inventory = d.inventory;
+    maxCap = Math.max(...DB.plants.map(p => +p.capacidad), 1);
+    bindStats(); renderChart();
+    $('#plantCount').textContent = DB.plants.length + ' plantas';
+    $('#plantList').innerHTML = DB.plants.slice(0, 6).map(plantRow).join('');
+    renderOperations(); renderInventory($('#invSearch').value); renderPlants(); renderAnalytics();
+    setStatus('Plataforma de gestión sostenible · Datos en vivo');
+  } catch (err) {
+    console.error('No se pudieron cargar los datos en vivo; se muestran datos de muestra:', err);
+    setStatus('Plataforma de gestión sostenible · Mostrando datos de muestra');
+  }
+}
+loadLive();
 </script>
 </body>
 </html>
