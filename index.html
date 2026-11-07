@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="BioVolt AI: prototipo de plataforma de gestión sostenible con asistente de IA y mesa de ayuda.">
+<title>BioVolt AI · Plataforma de gestión sostenible</title>
+<script>
+/* Tema: se resuelve ANTES de pintar para evitar parpadeo.
+   Prioridad: elección guardada > preferencia del sistema > oscuro (tema base de DESIGN.md). */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('bvTheme'); } catch (e) {}
+  if (t !== 'light' && t !== 'dark') {
+    t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<style>
+/* =====================================================================
+   1. VARIABLES (tokens de DESIGN.md + extensiones marcadas como "ext")
+   ===================================================================== */
+:root{
+  /* Tipografía: pila del sistema; SF Pro se usa si está instalada */
+  --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font-text:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,"Helvetica Neue",Helvetica,Arial,sans-serif;
+
+  /* Colores — tema oscuro (DESIGN.md) */
+  --background:#000000;
+  --surface:#000000;
+  --on-surface:#F5F5F7;
+  --on-surface-strong:#FFFFFF;
+  --on-surface-variant:#CCCCCC;
+  --surface-container-low:#1D1D1F;
+  --surface-hover:#2C2C2E;              /* ext: un paso tonal sobre #1D1D1F */
+  --field-bg:#000000;                   /* ext: fondo de campos sobre tarjetas */
+  --overlay:#0000007A;
+  --outline:rgba(255,255,255,.16);      /* ext: #00000029 es invisible sobre negro */
+  --primary:#0071E3;
+  --primary-hover:#0076DF;
+  --primary-active:#0068CB;             /* ext */
+  --on-primary:#FFFFFF;
+  --secondary:#0066CC;
+  --tertiary:#2997FF;
+  --accent-text:#2997FF;                /* texto de acento con contraste AA */
+  --ghost-text:#2997FF;
+  --focus:#2997FF;
+  --nav-bg:#0000007A;
+  --backdrop:rgba(0,0,0,.6);
+  /* Estados semánticos (ext, paleta de sistema Apple) */
+  --ok:#30D158;     --ok-bg:rgba(48,209,88,.16);
+  --warn:#FF9F0A;   --warn-bg:rgba(255,159,10,.16);
+  --danger:#FF453A; --danger-bg:rgba(255,69,58,.16);
+  --info-bg:rgba(41,151,255,.16);
+  --muted-bg:rgba(255,255,255,.10);
+  /* Degradado (stops de DESIGN.md) */
+  --grad:linear-gradient(90deg,#90CEEE,#48A7F4,#2789FF);
+
+  /* Espaciado (DESIGN.md) */
+  --xs:4px; --sm:8px; --md:9.6px; --lg:21px; --xl:33.22px;
+  --gutter:12px;
+  --page-margin:21px;                   /* ext: 12px en DESIGN.md, ampliado por legibilidad */
+  --container:1280px;                   /* ext: 2560px en DESIGN.md, acotado para un panel */
+  --section:72px;
+
+  /* Radios */
+  --radius-full:9999px;
+  --radius-card:22px;                   /* ext: DESIGN.md solo define pill */
+  --radius-field:14px;                  /* ext */
+
+  /* Movimiento (DESIGN.md: nunca más lento que 0.32s) */
+  --ease:cubic-bezier(.4,0,.6,1);
+  --t-fast:.1s; --t:.25s; --t-slow:.32s;
+}
+:root[data-theme="light"]{
+  --background:#FFFFFF;
+  --surface:#FFFFFF;
+  --on-surface:#1D1D1F;
+  --on-surface-strong:#000000;
+  --on-surface-variant:#6E6E73;
+  --surface-container-low:#F5F5F7;
+  --surface-hover:#E8E8ED;
+  --field-bg:#FFFFFF;
+  --outline:rgba(0,0,0,.16);
+  --accent-text:#0066CC;
+  --ghost-text:#0066CC;
+  --focus:#0071E3;
+  --nav-bg:rgba(255,255,255,.72);
+  --backdrop:rgba(0,0,0,.35);
+  --ok:#248A3D;     --ok-bg:rgba(36,138,61,.12);
+  --warn:#B25000;   --warn-bg:rgba(178,80,0,.12);
+  --danger:#D70015; --danger-bg:rgba(215,0,21,.10);
+  --info-bg:rgba(0,113,227,.10);
+  --muted-bg:rgba(0,0,0,.07);
+}
+
+/* =====================================================================
+   2. BASE
+   ===================================================================== */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--background);color:var(--on-surface);
+  font:400 17px/1.47 var(--font-text);letter-spacing:-.022em;-webkit-font-smoothing:antialiased;
+  transition:background-color var(--t) var(--ease),color var(--t) var(--ease)}
+main{flex:1;padding-top:48px}
+main:focus{outline:none}
+h1,h2,h3,h4,p,ul{margin:0}
+h1:focus,h2:focus{outline:none}
+ul{padding:0;list-style:none}
+a{color:var(--accent-text);text-decoration:none}
+a:hover{text-decoration:underline}
+button,input,select,textarea{font:inherit;letter-spacing:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.skip{position:absolute;left:12px;top:-64px;z-index:100;background:var(--primary);color:#fff;padding:10px 18px;border-radius:var(--radius-full);transition:top var(--t) var(--ease)}
+.skip:focus{top:8px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.container{width:100%;max-width:var(--container);margin-inline:auto;padding-inline:var(--page-margin)}
+
+/* Tipografía (DESIGN.md) */
+.display{font:600 32px/1.13 var(--font-display);letter-spacing:.002em;color:var(--on-surface-strong)}
+.h-lg{font:600 28px/1.1 var(--font-display);letter-spacing:-.003em;color:var(--on-surface-strong)}
+.h-sm{font:400 24px/1.14 var(--font-display);letter-spacing:.007em;color:var(--on-surface-strong)}
+.lead{font:400 19px/1.38 var(--font-display);letter-spacing:.011em;color:var(--on-surface-variant)}
+.panel-title{font:600 21px/1.19 var(--font-display);letter-spacing:.011em;color:var(--on-surface-strong)}
+.eyebrow{font:600 14px/1.29 var(--font-text);letter-spacing:-.016em;color:var(--accent-text)}
+.small{font-size:12px;line-height:1.33;letter-spacing:-.01em}
+.muted{color:var(--on-surface-variant)}
+.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+@media(min-width:734px){
+  .display{font-size:56px;line-height:1.07;letter-spacing:-.005em}
+  .h-lg{font-size:40px}
+  .h-sm{font-size:28px}
+  .lead{font-size:21px}
+}
+
+/* =====================================================================
+   3. COMPONENTES
+   ===================================================================== */
+/* --- Íconos --- */
+.ico{display:block;flex:none}
+.ico-circle{width:36px;height:36px;border-radius:var(--radius-full);display:inline-grid;place-items:center;background:var(--info-bg);color:var(--accent-text);flex:none}
+
+/* --- Botones (button-primary / outline / ghost de DESIGN.md) --- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sm);min-height:44px;padding:11px 21px;
+  border:1px solid transparent;border-radius:var(--radius-full);background:transparent;
+  font:400 17px/1.47 var(--font-text);letter-spacing:-.022em;white-space:nowrap;text-decoration:none;
+  transition:background-color var(--t) var(--ease),color var(--t) var(--ease),border-color var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+.btn:hover{text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-primary:active{background:var(--primary-active)}
+.btn-outline{color:var(--accent-text);border-color:var(--accent-text)}
+.btn-outline:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}
+.btn-ghost{color:var(--ghost-text);border-color:var(--secondary)}
+.btn-ghost:hover{background:var(--info-bg)}
+.btn-danger{color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{min-height:34px;padding:5px 15px;font-size:14px;font-weight:500;letter-spacing:-.016em}
+.btn-block{width:100%}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn-round{width:44px;padding:0;flex:none}
+.icon-btn{width:36px;height:36px;display:inline-grid;place-items:center;border:0;background:transparent;border-radius:var(--radius-full);color:var(--on-surface);
+  transition:background-color var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+.icon-btn:hover{background:var(--surface-hover)}
+.icon-btn:active{transform:scale(.92)}
+
+/* --- Chips / filtros --- */
+.chips{display:flex;flex-wrap:wrap;gap:var(--sm)}
+.chip{min-height:34px;padding:5px 15px;border:1px solid var(--outline);border-radius:var(--radius-full);background:transparent;color:var(--on-surface);
+  font-size:14px;font-weight:500;letter-spacing:-.016em;white-space:nowrap;
+  transition:background-color var(--t) var(--ease),color var(--t) var(--ease),border-color var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+.chip:hover{background:var(--surface-hover)}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed="true"],.chip[aria-selected="true"]{background:var(--on-surface-strong);color:var(--background);border-color:transparent}
+
+/* --- Pills de estado --- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:var(--radius-full);font-size:12px;font-weight:600;line-height:1.33;letter-spacing:-.01em;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill-ok{background:var(--ok-bg);color:var(--ok)}
+.pill-warn{background:var(--warn-bg);color:var(--warn)}
+.pill-danger{background:var(--danger-bg);color:var(--danger)}
+.pill-info{background:var(--info-bg);color:var(--accent-text)}
+.pill-muted{background:var(--muted-bg);color:var(--on-surface-variant)}
+.pill-plain::before{display:none}
+
+/* --- Tarjetas (planas: jerarquía por superficie tonal, sin sombras) --- */
+.card{position:relative;background:var(--surface-container-low);border-radius:var(--radius-card);padding:var(--lg);min-width:0;
+  transition:background-color var(--t) var(--ease)}
+.card.flush{padding:var(--sm)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--gutter);margin-bottom:var(--lg)}
+.grid{display:grid;gap:var(--gutter)}
+.stats{grid-template-columns:1fr}
+.two-col{grid-template-columns:1fr}
+.module-grid{grid-template-columns:1fr}
+@media(min-width:480px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:734px){.module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:28px}.card.flush{padding:var(--sm)}}
+@media(min-width:1068px){
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .two-col{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+  .module-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.stat-top{display:flex;align-items:center;justify-content:space-between;gap:var(--sm);color:var(--on-surface-variant);font-size:14px;font-weight:600;letter-spacing:-.016em}
+.stat-value{font:600 34px/1.1 var(--font-display);letter-spacing:-.005em;color:var(--on-surface-strong);margin:var(--lg) 0 var(--xs);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+@media(min-width:734px){.stat-value{font-size:40px}}
+
+/* --- Tablas --- */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:calc(var(--radius-card) - var(--sm))}
+table{width:100%;border-collapse:collapse;min-width:560px;font-size:14px;letter-spacing:-.016em;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--on-surface-variant);padding:12px 14px;border-bottom:1px solid var(--outline);white-space:nowrap}
+td{padding:13px 14px;border-bottom:1px solid var(--outline)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background-color var(--t) var(--ease)}
+tbody tr:hover{background:var(--surface-hover)}
+
+/* --- Formularios --- */
+.field{display:grid;gap:6px}
+.field>label,.field-label{font:600 14px/1.29 var(--font-text);letter-spacing:-.016em}
+.input,.select,.textarea{width:100%;min-height:44px;padding:10px 16px;border:1px solid var(--outline);background:var(--field-bg);color:var(--on-surface);
+  border-radius:var(--radius-field);transition:border-color var(--t) var(--ease),background-color var(--t) var(--ease)}
+.input:hover,.select:hover,.textarea:hover{border-color:var(--on-surface-variant)}
+.input:focus,.select:focus,.textarea:focus{outline:2px solid var(--focus);outline-offset:0;border-color:var(--focus)}
+.input::placeholder,.textarea::placeholder{color:var(--on-surface-variant);opacity:.8}
+.textarea{min-height:120px;resize:vertical;line-height:1.4}
+.select{appearance:none;-webkit-appearance:none;padding-right:42px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.input[aria-invalid="true"],.select[aria-invalid="true"],.textarea[aria-invalid="true"]{border-color:var(--danger)}
+.err{color:var(--danger);font-size:12px;line-height:1.33;letter-spacing:-.01em}
+.field-row{display:grid;gap:var(--gutter);grid-template-columns:1fr}
+@media(min-width:734px){.field-row.cols-2{grid-template-columns:1fr 1fr}}
+.form{display:grid;gap:var(--lg)}
+.search{position:relative;flex:1;min-width:220px}
+.search .input{border-radius:var(--radius-full);padding-left:46px}
+.search .ico{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--on-surface-variant);pointer-events:none}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--gutter);margin-bottom:var(--lg)}
+.toolbar .select{width:auto;min-width:160px;border-radius:var(--radius-full);padding-left:18px}
+.seg-group{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;background:var(--surface-hover);border-radius:var(--radius-full)}
+.seg{border:0;background:transparent;padding:7px 15px;border-radius:var(--radius-full);font-size:14px;font-weight:500;letter-spacing:-.016em;
+  transition:background-color var(--t) var(--ease),color var(--t) var(--ease)}
+.seg:hover{background:var(--muted-bg)}
+.seg.on{background:var(--primary);color:#fff}
+
+/* --- Barra de navegación fija con desenfoque --- */
+.nav{position:fixed;inset:0 0 auto 0;height:48px;z-index:50;background:var(--nav-bg);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--outline);transition:background-color var(--t) var(--ease)}
+.nav-inner{height:100%;display:flex;align-items:center;gap:var(--gutter);justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;color:var(--on-surface-strong);font:600 17px/1 var(--font-display);letter-spacing:.02em;text-decoration:none}
+.brand:hover{text-decoration:none}
+.brand-mark{width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700}
+.nav-links{display:none;align-items:center;gap:2px}
+.nav-links a{color:var(--on-surface-variant);font-size:14px;font-weight:500;letter-spacing:-.016em;padding:6px 11px;border-radius:var(--radius-full);
+  transition:color var(--t) var(--ease),background-color var(--t) var(--ease);text-decoration:none}
+.nav-links a:hover{color:var(--on-surface-strong);background:var(--muted-bg)}
+.nav-links a[aria-current="page"]{color:var(--on-surface-strong);background:var(--muted-bg)}
+.nav-actions{display:flex;align-items:center;gap:4px}
+.nav.open .nav-links{display:flex;flex-direction:column;align-items:stretch;gap:0;position:fixed;top:48px;left:0;right:0;max-height:calc(100dvh - 48px);overflow:auto;
+  padding:var(--sm) var(--page-margin) var(--lg);background:var(--nav-bg);-webkit-backdrop-filter:saturate(180%) blur(30px);backdrop-filter:saturate(180%) blur(30px);
+  animation:fade var(--t) var(--ease)}
+.nav.open .nav-links a{font:400 24px/1.14 var(--font-display);letter-spacing:.007em;padding:12px 4px;border-radius:0;border-bottom:1px solid var(--outline);background:none;color:var(--on-surface)}
+.nav.open .nav-links a[aria-current="page"]{color:var(--accent-text)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media(min-width:1068px){
+  .nav-links{display:flex}
+  .menu-btn{display:none}
+}
+
+/* --- Hero --- */
+.hero{text-align:center;padding:56px 0 var(--xl)}
+.hero .display{max-width:15ch;margin:var(--sm) auto var(--lg)}
+.hero .lead{max-width:640px;margin:0 auto}
+.hero-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--gutter);margin-top:var(--xl)}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;border-radius:var(--radius-full);background:var(--surface-container-low);font-size:14px;font-weight:600;letter-spacing:-.016em;color:var(--on-surface-variant)}
+.hero-tag .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+@media(min-width:734px){.hero{padding:96px 0 var(--xl)}}
+
+/* --- Vistas --- */
+.view{padding:var(--xl) 0 var(--section);animation:fade var(--t-slow) var(--ease)}
+.view-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--lg);margin-bottom:var(--xl)}
+.view-head .h-lg{margin:var(--xs) 0 var(--sm)}
+.view-head .lead{max-width:680px}
+.section{padding-top:var(--section)}
+.section-head{margin-bottom:var(--xl);max-width:720px}
+.section-head .h-lg{margin:var(--xs) 0 var(--sm)}
+.notice{display:flex;gap:var(--md);align-items:flex-start;padding:14px 18px;border-radius:var(--radius-field);background:var(--info-bg);color:var(--on-surface);font-size:14px;line-height:1.4;letter-spacing:-.016em;margin-bottom:var(--lg)}
+.notice .ico{color:var(--accent-text);margin-top:2px}
+.stack{display:grid;gap:var(--gutter)}
+.mt{margin-top:var(--gutter)}
+
+/* --- Gráfico de barras --- */
+.chart{display:flex;align-items:stretch;gap:6px;height:230px;padding-top:var(--sm)}
+.bar-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bar-val{font-size:11px;color:var(--on-surface-variant);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar-track{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--outline)}
+.bar{width:min(100%,34px);height:0;border-radius:8px 8px 0 0;background:var(--tertiary);transition:height var(--t-slow) var(--ease),background-color var(--t) var(--ease)}
+.bar-col:hover .bar{background:var(--primary)}
+.bar-label{font-size:11px;color:var(--on-surface-variant)}
+@media(max-width:480px){.bar-val{font-size:9px}}
+
+/* --- Listas de plantas / barras de progreso --- */
+.plant-list{display:grid;gap:var(--lg)}
+.plant-row{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+.plant-name{font-size:15px;font-weight:600;letter-spacing:-.016em;color:var(--on-surface-strong)}
+.track{grid-column:1/-1;height:4px;border-radius:var(--radius-full);background:var(--surface-hover);overflow:hidden}
+.track>span{display:block;height:100%;border-radius:inherit;background:var(--tertiary);transition:width var(--t-slow) var(--ease)}
+
+/* --- Tarjetas de módulo / planta --- */
+.module-card{display:flex;flex-direction:column;gap:var(--md);min-height:200px}
+.module-card p{color:var(--on-surface-variant);font-size:15px;line-height:1.4}
+.module-card .btn{margin-top:auto;align-self:flex-start}
+.module-card .ico-circle{width:44px;height:44px}
+.module-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:var(--sm);padding-top:var(--md)}
+.metric-tile{padding:var(--lg);border-radius:var(--radius-field);background:var(--field-bg)}
+
+/* --- FAQ (acordeón) --- */
+.faq{max-width:820px;margin-inline:auto}
+.faq-item{border-bottom:1px solid var(--outline)}
+.faq-q{width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--lg);text-align:left;background:none;border:0;padding:var(--lg) 4px;
+  font:600 19px/1.3 var(--font-display);letter-spacing:.01em;color:var(--on-surface-strong);transition:color var(--t) var(--ease)}
+.faq-q:hover{color:var(--accent-text)}
+.faq-q .ico{transition:transform var(--t) var(--ease);color:var(--on-surface-variant)}
+.faq-item.open .faq-q .ico{transform:rotate(45deg)}
+.faq-a{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows var(--t) var(--ease),visibility 0s linear var(--t)}
+.faq-a>div{overflow:hidden}
+.faq-a p{padding:0 4px var(--lg);color:var(--on-surface-variant);font-size:17px;line-height:1.47}
+.faq-item.open .faq-a{grid-template-rows:1fr;visibility:visible;transition-delay:0s}
+
+/* --- Mesa de ayuda --- */
+.help-layout{display:grid;gap:var(--lg);grid-template-columns:1fr;align-items:start}
+@media(min-width:1068px){.help-layout{grid-template-columns:minmax(0,1fr) 410px}.help-form{position:sticky;top:68px}}
+.ticket-list{display:grid;gap:var(--gutter)}
+.ticket{display:flex;flex-direction:column;gap:var(--md);width:100%;text-align:left;border:0;color:inherit;
+  transition:background-color var(--t) var(--ease),transform var(--t-fast) var(--ease)}
+.ticket:hover{background:var(--surface-hover)}
+.ticket:active{transform:scale(.995)}
+.ticket-main{display:grid;gap:2px;min-width:0}
+.ticket-title{font:600 17px/1.3 var(--font-text);letter-spacing:-.022em;color:var(--on-surface-strong);overflow-wrap:anywhere}
+.ticket-pills{display:flex;flex-wrap:wrap;gap:6px}
+@media(min-width:734px){.ticket{flex-direction:row;align-items:center;justify-content:space-between}.ticket-pills{flex:none;justify-content:flex-end}}
+.counter{justify-self:end;color:var(--on-surface-variant)}
+
+/* --- Diálogo de detalle --- */
+dialog{border:0;padding:0;background:var(--surface-container-low);color:var(--on-surface);border-radius:var(--radius-card);width:min(580px,calc(100% - 24px));max-height:calc(100dvh - 48px);overflow:auto}
+dialog::backdrop{background:var(--backdrop);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+dialog[open]{animation:pop var(--t) var(--ease)}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.dlg{padding:var(--lg);display:grid;gap:var(--lg)}
+@media(min-width:734px){.dlg{padding:var(--xl)}}
+.dlg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--gutter)}
+.dl{display:grid;grid-template-columns:1fr;gap:var(--md)}
+.dl div{padding:12px 16px;border-radius:var(--radius-field);background:var(--field-bg)}
+.dl dt{font-size:12px;color:var(--on-surface-variant);margin-bottom:2px}
+.dl dd{margin:0;font-size:15px;overflow-wrap:anywhere}
+@media(min-width:734px){.dl{grid-template-columns:1fr 1fr}}
+.desc-box{padding:14px 16px;border-radius:var(--radius-field);background:var(--field-bg);font-size:15px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.dlg-actions{display:flex;flex-wrap:wrap;gap:var(--sm);justify-content:space-between;align-items:center}
+
+/* --- Estado vacío --- */
+.empty{display:grid;justify-items:center;gap:var(--md);text-align:center;padding:var(--xl) var(--lg)}
+.empty .ico-circle{width:56px;height:56px}
+.empty p{color:var(--on-surface-variant);max-width:380px;font-size:15px}
+
+/* --- Chat --- */
+.chat{display:flex;flex-direction:column;height:min(680px,calc(100dvh - 190px));min-height:480px;padding:0;overflow:hidden}
+.chat-head{display:flex;align-items:center;justify-content:space-between;gap:var(--gutter);padding:var(--lg);border-bottom:1px solid var(--outline)}
+.chat-id{display:flex;align-items:center;gap:var(--md);min-width:0}
+.chat-log{flex:1;overflow-y:auto;padding:var(--lg);display:flex;flex-direction:column;gap:var(--lg);scroll-behavior:smooth}
+.msg-row{display:flex;flex-direction:column;gap:4px;max-width:86%;animation:rise var(--t) var(--ease)}
+.msg-row.user{align-self:flex-end;align-items:flex-end}
+.msg-row.assistant{align-self:flex-start;align-items:flex-start}
+.bubble{padding:10px 16px;border-radius:20px;font-size:16px;line-height:1.4;letter-spacing:-.016em;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-row.user .bubble{background:var(--primary);color:#fff;border-bottom-right-radius:6px}
+.msg-row.assistant .bubble{background:var(--surface-hover);color:var(--on-surface);border-bottom-left-radius:6px}
+.msg-row.error .bubble{background:var(--danger-bg);color:var(--danger)}
+.msg-time{padding:0 6px}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.typing{display:inline-flex;gap:5px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--on-surface-variant);animation:blink 1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.15s}
+.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.chat-empty{margin:auto;display:grid;justify-items:center;gap:var(--md);text-align:center;max-width:420px}
+.chat-empty .ico-circle{width:64px;height:64px}
+.chat-empty p{color:var(--on-surface-variant);font-size:15px}
+.chat-foot{padding:var(--gutter) var(--lg) var(--lg);display:grid;gap:var(--gutter);border-top:1px solid var(--outline)}
+.chat-chips{display:flex;gap:var(--sm);overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chat-chips::-webkit-scrollbar{display:none}
+.chat-form{display:flex;gap:var(--sm)}
+.chat-form .input{border-radius:var(--radius-full);padding-inline:20px}
+
+/* --- Pie de página --- */
+.footer{border-top:1px solid var(--outline);padding:var(--xl) 0;color:var(--on-surface-variant);font-size:12px;line-height:1.5;letter-spacing:-.01em;background:var(--surface-container-low)}
+.footer-cols{display:grid;gap:var(--lg);grid-template-columns:1fr}
+.footer h4{font-size:12px;font-weight:600;color:var(--on-surface-strong);margin-bottom:var(--sm)}
+.footer a{color:var(--on-surface-variant);display:block;padding:3px 0}
+.footer a:hover{color:var(--on-surface-strong)}
+.footer-bottom{margin-top:var(--lg);padding-top:var(--lg);border-top:1px solid var(--outline)}
+@media(min-width:734px){.footer-cols{grid-template-columns:1.4fr 1fr 1fr 1fr}}
+
+/* --- Aviso emergente --- */
+.toast{position:fixed;left:50%;bottom:24px;z-index:80;transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 24px);
+  padding:12px 20px;border-radius:var(--radius-full);background:var(--on-surface-strong);color:var(--background);font-size:14px;font-weight:600;letter-spacing:-.016em;
+  transition:opacity var(--t) var(--ease),transform var(--t) var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* =====================================================================
+   4. LIQUID MORPH (extensión de DESIGN.md: Liquid Glass + formas fluidas)
+   Todo es decorativo (aria-hidden) y se apaga con prefers-reduced-motion.
+   ===================================================================== */
+:root{--glass-bg:rgba(29,29,31,.58);--glass-strong:rgba(29,29,31,.84);--edge-a:rgba(255,255,255,.32);--edge-b:rgba(255,255,255,.06);--shine:rgba(255,255,255,.10);--pill-glass:rgba(255,255,255,.14);--blob-op:.34}
+:root[data-theme="light"]{--glass-bg:rgba(245,245,247,.62);--glass-strong:rgba(250,250,252,.88);--edge-a:rgba(255,255,255,.95);--edge-b:rgba(0,0,0,.08);--shine:rgba(255,255,255,.6);--pill-glass:rgba(0,0,0,.07);--blob-op:.28}
+body{overflow-x:clip}
+
+/* Fondo líquido fijo: 4 manchas que se deforman (solo transform: va por GPU) */
+.liquid-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.liquid-bg i{position:absolute;display:block;border-radius:50%;filter:blur(90px);opacity:var(--blob-op);will-change:transform}
+.liquid-bg i:nth-child(1){width:46vmax;height:36vmax;left:-14vmax;top:-12vmax;background:#2789FF;animation:drift1 28s ease-in-out infinite alternate}
+.liquid-bg i:nth-child(2){width:38vmax;height:42vmax;right:-16vmax;top:18vh;background:#48A7F4;animation:drift2 34s ease-in-out infinite alternate}
+.liquid-bg i:nth-child(3){width:34vmax;height:28vmax;left:18vw;bottom:-16vmax;background:#90CEEE;animation:drift3 40s ease-in-out infinite alternate}
+.liquid-bg i:nth-child(4){width:18vmax;height:18vmax;right:22vw;top:-6vmax;background:#FDD30F;opacity:.10;animation:drift2 30s ease-in-out infinite alternate-reverse}
+@keyframes drift1{0%{transform:translate(0,0) scale(1,1)}50%{transform:translate(14vw,12vh) scale(1.25,.8)}100%{transform:translate(5vw,26vh) scale(.85,1.2)}}
+@keyframes drift2{0%{transform:translate(0,0) scale(1,1)}50%{transform:translate(-12vw,-8vh) scale(.8,1.25)}100%{transform:translate(-4vw,14vh) scale(1.2,.9)}}
+@keyframes drift3{0%{transform:translate(0,0) scale(1,1)}50%{transform:translate(16vw,-10vh) scale(1.3,.85)}100%{transform:translate(-8vw,-18vh) scale(.9,1.15)}}
+
+/* Hero: gotas que se funden y se separan (filtro "gooey" de SVG) */
+.hero{position:relative;isolation:isolate}
+.hero-liquid{position:absolute;left:50%;top:-20px;width:min(1100px,100vw);height:calc(100% + 40px);transform:translateX(-50%);z-index:-1;pointer-events:none;opacity:.6;
+  -webkit-mask-image:radial-gradient(closest-side,#000 60%,transparent);mask-image:radial-gradient(closest-side,#000 60%,transparent)}
+:root[data-theme="light"] .hero-liquid{opacity:.45}
+.goo{position:absolute;inset:0;filter:url(#goo)}
+.goo i{position:absolute;display:block;border-radius:50%;background:linear-gradient(135deg,#90CEEE,#2789FF);will-change:transform}
+.goo i:nth-child(1){width:min(230px,34vw);height:min(230px,34vw);left:16%;top:14%;animation:gooA 11s ease-in-out infinite alternate}
+.goo i:nth-child(2){width:min(190px,28vw);height:min(190px,28vw);left:50%;top:34%;animation:gooB 13s ease-in-out infinite alternate}
+.goo i:nth-child(3){width:min(150px,22vw);height:min(150px,22vw);left:32%;top:52%;animation:gooC 9s ease-in-out infinite alternate}
+.goo i:nth-child(4){width:min(120px,18vw);height:min(120px,18vw);left:64%;top:10%;animation:gooD 15s ease-in-out infinite alternate}
+@keyframes gooA{to{transform:translate(min(26vw,260px),60px) scale(1.2,.9)}}
+@keyframes gooB{to{transform:translate(max(-24vw,-240px),-40px) scale(.85,1.15)}}
+@keyframes gooC{to{transform:translate(min(20vw,200px),-70px) scale(1.25,1)}}
+@keyframes gooD{to{transform:translate(max(-18vw,-180px),90px) scale(1,1.3)}}
+
+/* Liquid Glass: tarjetas translúcidas con borde especular y brillo que sigue al cursor */
+.card{background:var(--glass-bg);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+  background:linear-gradient(135deg,var(--edge-a),transparent 38%,transparent 62%,var(--edge-b));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+  background:radial-gradient(240px circle at var(--mx,50%) var(--my,0%),var(--shine),transparent 65%);transition:opacity var(--t) var(--ease)}
+@media(hover:hover){.card:hover::after{opacity:1}}
+.ticket:hover{background:var(--glass-strong)}
+.hero-tag{background:var(--glass-bg);-webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);border:1px solid var(--edge-b)}
+dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%)}
+@media(hover:hover){.btn-primary:hover{background-image:radial-gradient(110px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.34),transparent 70%)}}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:var(--surface-container-low)}dialog{background:var(--surface-container-low)}}
+
+/* Navegación: píldora de vidrio que se desliza y se deforma entre secciones */
+.nav-links{position:relative}
+.nav-links a{position:relative;z-index:1}
+.nav-liquid{display:none;position:absolute;left:0;top:0;width:var(--w,0);height:var(--h,0);transform:translate(var(--x,0),var(--y,0));border-radius:var(--radius-full);
+  background:var(--pill-glass);border:1px solid var(--edge-b);-webkit-backdrop-filter:blur(8px) saturate(180%);backdrop-filter:blur(8px) saturate(180%);pointer-events:none;opacity:0;
+  transition:transform var(--t-slow) cubic-bezier(.34,1.45,.64,1),width var(--t-slow) cubic-bezier(.34,1.45,.64,1),height var(--t-slow) var(--ease),opacity var(--t) var(--ease)}
+.nav-liquid.on{opacity:1}
+.nav-liquid.snap{transition:none}
+.nav-liquid.squish{animation:squish var(--t-slow) var(--ease)}
+@keyframes squish{0%{scale:1 1}35%{scale:1.14 .84}70%{scale:.97 1.05}100%{scale:1 1}}
+@media(min-width:1068px){.nav-liquid{display:block}.nav-links a[aria-current="page"]{background:transparent}}
+
+/* Morph del ícono de tema y entrada de vistas */
+.icon-btn svg.spin{animation:spinmorph var(--t-slow) cubic-bezier(.34,1.45,.64,1)}
+@keyframes spinmorph{from{transform:rotate(-120deg) scale(.3);opacity:0}to{transform:none;opacity:1}}
+.view{animation:viewIn var(--t-slow) var(--ease)}
+@keyframes viewIn{from{opacity:0;filter:blur(10px);transform:translateY(10px) scale(.985)}to{opacity:1;filter:blur(0);transform:none}}
+@media(prefers-reduced-motion:reduce){.liquid-bg i,.goo i{animation:none!important}.view{animation:none}}
+
+/* --- Accesibilidad de movimiento --- */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<!-- Filtro "gooey": fusiona las gotas del hero -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <filter id="goo" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b"/>
+    <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/>
+  </filter>
+</defs></svg>
+<div class="liquid-bg" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+<!-- ============================ NAVEGACIÓN ============================ -->
+<header class="nav" id="siteNav">
+  <div class="container nav-inner">
+    <a class="brand" href="#/inicio" aria-label="BioVolt, ir al inicio"><span class="brand-mark" aria-hidden="true">B</span>BioVolt</a>
+    <nav class="nav-links" id="navLinks" aria-label="Principal">
+      <span class="nav-liquid" id="navLiquid" aria-hidden="true"></span>
+      <a href="#/inicio" data-route="inicio">Inicio</a>
+      <a href="#/operaciones" data-route="operaciones">Operaciones</a>
+      <a href="#/inventario" data-route="inventario">Inventario</a>
+      <a href="#/plantas" data-route="plantas">Plantas</a>
+      <a href="#/directorio" data-route="directorio">Directorio</a>
+      <a href="#/analitica" data-route="analitica">Analítica</a>
+      <a href="#/ayuda" data-route="ayuda">Mesa de ayuda</a>
+      <a href="#/asistente" data-route="asistente">Asistente IA</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Cambiar tema"></button>
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLinks"></button>
+    </div>
+  </div>
+</header>
+
+<noscript><p style="padding:80px 21px 0;text-align:center">Esta página necesita JavaScript para funcionar.</p></noscript>
+
+<main id="main" tabindex="-1">
+
+<!-- ============================ INICIO ============================ -->
+<div class="view" data-view="inicio" id="view-inicio" style="padding-top:0">
+  <section class="container hero" aria-labelledby="heroTitle">
+    <div class="hero-liquid" aria-hidden="true"><div class="goo"><i></i><i></i><i></i><i></i></div></div>
+    <span class="hero-tag"><span class="dot" aria-hidden="true"></span>Plataforma de gestión sostenible · Entorno de prueba</span>
+    <h1 class="display" id="heroTitle">La energía de una gestión <span class="grad-text">inteligente.</span></h1>
+    <p class="lead">Transformamos residuos en oportunidades. Monitorea la operación, coordina solicitudes y convierte los datos de BioVolt en información útil para decidir mejor.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#/asistente">Consultar BioVolt AI</a>
+      <a class="btn btn-outline" href="#/operaciones">Explorar operaciones</a>
+    </div>
+  </section>
+
+  <section class="container" aria-label="Indicadores principales">
+    <div class="grid stats">
+      <article class="card"><div class="stat-top"><span>Clientes registrados</span><span class="ico-circle" data-icon="users"></span></div><div class="stat-value" data-bind="clients">—</div><p class="small muted">Registros en la base de datos</p></article>
+      <article class="card"><div class="stat-top"><span>Proveedores</span><span class="ico-circle" data-icon="truck"></span></div><div class="stat-value" data-bind="providers">—</div><p class="small muted">Proveedores registrados</p></article>
+      <article class="card"><div class="stat-top"><span>Plantas</span><span class="ico-circle" data-icon="building"></span></div><div class="stat-value" data-bind="plants">—</div><p class="small muted">Operativas y en mantenimiento</p></article>
+      <article class="card"><div class="stat-top"><span>Registros de producción</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="production">—</div><p class="small muted">Lecturas registradas</p></article>
+    </div>
+
+    <div class="grid two-col mt">
+      <article class="card">
+        <div class="card-head"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Primeros ocho registros del respaldo</p></div><span class="pill pill-info pill-plain">kWh</span></div>
+        <div class="chart" id="productionChart" role="img" aria-label="Gráfico de barras de producción"></div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><h2 class="panel-title">Estado de las plantas</h2><p class="small muted">Capacidad relativa por planta</p></div><span class="pill pill-muted pill-plain" id="plantCount">—</span></div>
+        <div class="plant-list" id="plantList"></div>
+      </article>
+    </div>
+
+    <div class="grid two-col mt">
+      <article class="card">
+        <div class="card-head"><div><h2 class="panel-title">Impacto ambiental</h2><p class="small muted">Acumulados del respaldo suministrado</p></div><span class="ico-circle" data-icon="leaf"></span></div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="metric-tile"><p class="small muted">CO₂ evitado</p><div class="stat-value" data-bind="co2">—</div><p class="small muted">Toneladas registradas</p></div>
+          <div class="metric-tile"><p class="small muted">Residuos procesados</p><div class="stat-value" data-bind="waste">—</div><p class="small muted">Toneladas registradas</p></div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card-head"><div><h2 class="panel-title">Accesos rápidos</h2><p class="small muted">Herramientas principales</p></div></div>
+        <div class="stack">
+          <a class="btn btn-outline btn-block" href="#/ayuda">Crear solicitud de soporte</a>
+          <a class="btn btn-outline btn-block" href="#/inventario">Consultar inventario</a>
+          <a class="btn btn-outline btn-block" href="#/asistente">Hablar con el asistente</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="container section" id="modulos" aria-labelledby="modTitle">
+    <div class="section-head"><p class="eyebrow">Módulos</p><h2 class="h-lg" id="modTitle">Todo BioVolt, en un solo lugar.</h2><p class="lead">La base de datos cubre áreas operativas, administrativas y ambientales. Estos son los módulos del sistema.</p></div>
+    <div class="grid module-grid" id="moduleGrid"></div>
+  </section>
+
+  <section class="container section" id="faq" aria-labelledby="faqTitle">
+    <div class="section-head" style="margin-inline:auto;text-align:center"><p class="eyebrow">Preguntas frecuentes</p><h2 class="h-lg" id="faqTitle">Lo que suelen preguntar.</h2></div>
+    <div class="faq" id="faqList"></div>
+  </section>
+</div>
+
+<!-- ============================ OPERACIONES ============================ -->
+<div class="view" data-view="operaciones" id="view-operaciones" hidden>
+  <div class="container">
+    <div class="view-head"><div><p class="eyebrow">Gestión empresarial</p><h1 class="h-lg">Operaciones</h1><p class="lead">Una lectura rápida de los procesos centrales registrados en la base de datos.</p></div></div>
+    <div class="grid stats">
+      <article class="card"><div class="stat-top"><span>Producción</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="production">—</div><p class="small muted">Registros de producción</p></article>
+      <article class="card"><div class="stat-top"><span>Plantas</span><span class="ico-circle" data-icon="building"></span></div><div class="stat-value" data-bind="plants">—</div><p class="small muted">Instalaciones registradas</p></article>
+      <article class="card"><div class="stat-top"><span>Facturas</span><span class="ico-circle" data-icon="receipt"></span></div><div class="stat-value" data-bind="invoices">—</div><p class="small muted">Documentos de facturación</p></article>
+      <article class="card"><div class="stat-top"><span>Proveedores</span><span class="ico-circle" data-icon="truck"></span></div><div class="stat-value" data-bind="providers">—</div><p class="small muted">Abastecimiento activo</p></article>
+    </div>
+    <article class="card flush mt">
+      <div class="card-head" style="padding:var(--lg) var(--lg) 0;margin-bottom:var(--sm)"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Muestra de registros del respaldo</p></div><span class="pill pill-muted pill-plain">Muestra</span></div>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de producción energética">
+        <table><thead><tr><th scope="col">ID</th><th scope="col">Planta</th><th scope="col">Fecha</th><th scope="col">Cantidad</th><th scope="col">Unidad</th></tr></thead><tbody id="productionRows"></tbody></table>
+      </div>
+    </article>
+  </div>
+</div>
+
+<!-- ============================ INVENTARIO ============================ -->
+<div class="view" data-view="inventario" id="view-inventario" hidden>
+  <div class="container">
+    <div class="view-head"><div><p class="eyebrow">Recursos y abastecimiento</p><h1 class="h-lg">Inventario y biomasa</h1><p class="lead">Consulta la biomasa registrada y su disponibilidad en almacenes.</p></div></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Los datos son una muestra local, aún no sincronizada con MySQL.</span></div>
+    <div class="toolbar">
+      <div class="search"><span data-icon="search" data-size="18"></span><label class="sr-only" for="invSearch">Buscar biomasa</label><input class="input" id="invSearch" type="search" placeholder="Buscar biomasa o material…" autocomplete="off"></div>
+      <span class="pill pill-muted pill-plain" id="invCount" aria-live="polite"></span>
+    </div>
+    <article class="card flush">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de inventario de biomasa">
+        <table><thead><tr><th scope="col">Material</th><th scope="col">ID</th><th scope="col">Tipo</th><th scope="col">Cantidad registrada</th><th scope="col">Almacén</th><th scope="col">Stock</th></tr></thead><tbody id="invRows"></tbody></table>
+      </div>
+      <div class="empty" id="invEmpty" hidden></div>
+    </article>
+  </div>
+</div>
+
+<!-- ============================ PLANTAS ============================ -->
+<div class="view" data-view="plantas" id="view-plantas" hidden>
+  <div class="container">
+    <div class="view-head"><div><p class="eyebrow">Infraestructura</p><h1 class="h-lg">Plantas BioVolt</h1><p class="lead">Ubicación, capacidad y estado de las instalaciones registradas.</p></div></div>
+    <div class="toolbar"><div class="chips" role="group" aria-label="Filtrar plantas por estado" id="plantFilters"></div></div>
+    <div class="grid module-grid" id="plantCards"></div>
+  </div>
+</div>
+
+<!-- ============================ DIRECTORIO ============================ -->
+<div class="view" data-view="directorio" id="view-directorio" hidden>
+  <div class="container">
+    <div class="view-head"><div><p class="eyebrow">Relaciones empresariales</p><h1 class="h-lg">Directorio</h1><p class="lead">Consulta de clientes y proveedores registrados en BioVolt.</p></div></div>
+    <div class="toolbar">
+      <div class="chips" role="tablist" aria-label="Tipo de directorio">
+        <button class="chip" role="tab" id="tabClients" aria-selected="true" type="button">Clientes</button>
+        <button class="chip" role="tab" id="tabProviders" aria-selected="false" type="button">Proveedores</button>
+      </div>
+      <div class="search"><span data-icon="search" data-size="18"></span><label class="sr-only" for="dirSearch">Buscar por nombre</label><input class="input" id="dirSearch" type="search" placeholder="Buscar por nombre…" autocomplete="off"></div>
+    </div>
+    <article class="card flush">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla del directorio">
+        <table><thead><tr><th scope="col">Nombre</th><th scope="col" id="dirIdHead">Documento</th><th scope="col">Teléfono</th><th scope="col">Correo</th><th scope="col">Dirección</th></tr></thead><tbody id="dirRows"></tbody></table>
+      </div>
+      <div class="empty" id="dirEmpty" hidden></div>
+    </article>
+    <p class="small muted mt" id="dirNote" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- ============================ ANALÍTICA ============================ -->
+<div class="view" data-view="analitica" id="view-analitica" hidden>
+  <div class="container">
+    <div class="view-head"><div><p class="eyebrow">Analítica asistida</p><h1 class="h-lg">Analítica inteligente</h1><p class="lead">Indicadores calculados a partir de los registros incluidos en el respaldo SQL.</p></div></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Los valores son agregados de datos de ejemplo. No representan cifras en tiempo real ni predicciones de un modelo entrenado.</span></div>
+    <div class="grid stats">
+      <article class="card"><div class="stat-top"><span>Energía registrada</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="energy">—</div><p class="small muted">Suma de cantidad (unidades mixtas en origen)</p></article>
+      <article class="card"><div class="stat-top"><span>CO₂ evitado</span><span class="ico-circle" data-icon="leaf"></span></div><div class="stat-value" data-bind="co2">—</div><p class="small muted">Suma de registros ambientales</p></article>
+      <article class="card"><div class="stat-top"><span>Residuos procesados</span><span class="ico-circle" data-icon="cycle"></span></div><div class="stat-value" data-bind="waste">—</div><p class="small muted">Suma de registros ambientales</p></article>
+      <article class="card"><div class="stat-top"><span>Facturas</span><span class="ico-circle" data-icon="receipt"></span></div><div class="stat-value" data-bind="invoices">—</div><p class="small muted">Documentos de facturación</p></article>
+    </div>
+    <div class="grid two-col mt">
+      <article class="card"><div class="card-head"><div><h2 class="panel-title">Lectura automática de datos</h2><p class="small muted">Reglas explicables sobre los registros actuales</p></div><span class="pill pill-info pill-plain">Descriptivo</span></div><div class="stack" id="insightList"></div></article>
+      <article class="card"><div class="card-head"><div><h2 class="panel-title">Capacidad por planta</h2><p class="small muted">Valores registrados</p></div></div><div class="plant-list" id="capacityList"></div></article>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ MESA DE AYUDA ============================ -->
+<div class="view" data-view="ayuda" id="view-ayuda" hidden>
+  <div class="container">
+    <div class="view-head">
+      <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
+      <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
+    </div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Prototipo funcional: las solicitudes se guardan en este navegador (localStorage). La conexión a una tabla MySQL llega en la siguiente fase.</span></div>
+    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:var(--lg)" id="ticketStats"></div>
+    <div class="help-layout">
+      <section aria-label="Listado de solicitudes">
+        <div class="toolbar">
+          <div class="search"><span data-icon="search" data-size="18"></span><label class="sr-only" for="tSearch">Buscar solicitudes</label><input class="input" id="tSearch" type="search" placeholder="Buscar por asunto, ID o nombre…" autocomplete="off"></div>
+          <label class="sr-only" for="tPrio">Filtrar por prioridad</label>
+          <select class="select" id="tPrio"><option value="">Todas las prioridades</option><option>Baja</option><option>Media</option><option>Alta</option><option>Crítica</option></select>
+        </div>
+        <div class="chips" role="group" aria-label="Filtrar por estado" id="statusFilters" style="margin-bottom:var(--lg)"></div>
+        <p class="small muted" id="ticketCount" aria-live="polite" style="margin-bottom:var(--md)"></p>
+        <div class="ticket-list" id="ticketList"></div>
+        <div class="card empty" id="ticketEmpty" hidden></div>
+      </section>
+      <aside class="card help-form" aria-labelledby="formTitle">
+        <div class="card-head"><div><h2 class="panel-title" id="formTitle">Registrar solicitud</h2><p class="small muted">Describe el inconveniente</p></div></div>
+        <form class="form" id="ticketForm" novalidate>
+          <div class="field-row cols-2">
+            <div class="field"><label for="tName">Nombre</label><input class="input" id="tName" name="name" autocomplete="name" maxlength="60" required aria-describedby="tName-err" placeholder="Tu nombre"><p class="err" id="tName-err" hidden></p></div>
+            <div class="field"><label for="tEmail">Correo</label><input class="input" id="tEmail" name="email" type="email" autocomplete="email" maxlength="80" required aria-describedby="tEmail-err" placeholder="nombre@empresa.com"><p class="err" id="tEmail-err" hidden></p></div>
+          </div>
+          <div class="field"><label for="tSubject">Asunto</label><input class="input" id="tSubject" name="subject" maxlength="90" required aria-describedby="tSubject-err" placeholder="Ej. Error al consultar inventario"><p class="err" id="tSubject-err" hidden></p></div>
+          <div class="field-row cols-2">
+            <div class="field"><label for="tCategory">Categoría</label><select class="select" id="tCategory" name="category" required aria-describedby="tCategory-err"><option value="">Selecciona…</option><option>Sistemas</option><option>Inventario</option><option>Producción</option><option>Logística</option><option>Administración</option><option>Otro</option></select><p class="err" id="tCategory-err" hidden></p></div>
+            <div class="field"><label for="tPriority">Prioridad</label><select class="select" id="tPriority" name="priority" required aria-describedby="tPriority-err"><option>Baja</option><option selected>Media</option><option>Alta</option><option>Crítica</option></select><p class="err" id="tPriority-err" hidden></p></div>
+          </div>
+          <div class="field"><label for="tDescription">Descripción</label><textarea class="textarea" id="tDescription" name="description" maxlength="500" required aria-describedby="tDescription-err tDescCount" placeholder="Cuéntanos qué ocurrió…"></textarea><p class="err" id="tDescription-err" hidden></p><span class="small counter" id="tDescCount">0/500</span></div>
+          <button class="btn btn-primary btn-block" type="submit">Enviar solicitud</button>
+        </form>
+        <button class="btn btn-ghost btn-sm mt" type="button" id="restoreDemo">Restaurar datos de demostración</button>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ ASISTENTE IA ============================ -->
+<div class="view" data-view="asistente" id="view-asistente" hidden>
+  <div class="container" style="max-width:900px">
+    <div class="view-head"><div><p class="eyebrow">Inteligencia artificial aplicada</p><h1 class="h-lg">BioVolt Assistant</h1><p class="lead">Un punto de consulta para conocer los procesos y la información general de BioVolt.</p></div></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini). Los indicadores de la página son datos de demostración y el asistente no tiene acceso a la base de datos en tiempo real.</span></div>
+    <section class="card chat" aria-label="Chat con BioVolt Assistant">
+      <div class="chat-head">
+        <div class="chat-id"><span class="ico-circle" data-icon="sparkles"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
+        <button class="btn btn-ghost btn-sm" type="button" id="clearChat">Limpiar</button>
+      </div>
+      <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversación">
+        <div class="chat-empty" id="chatEmpty">
+          <span class="ico-circle" data-icon="sparkles" data-size="28"></span>
+          <h3 class="h-sm" style="font-size:24px">Hola, soy BioVolt Assistant.</h3>
+          <p>Puedo orientarte sobre biomasa, plantas, inventario, producción, clientes y soporte. ¿Qué te gustaría consultar?</p>
+        </div>
+      </div>
+      <div class="chat-foot">
+        <div class="chat-chips" id="chatChips" aria-label="Sugerencias"></div>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <label class="sr-only" for="chatInput">Escribe tu pregunta</label>
+          <input class="input" id="chatInput" placeholder="Escribe tu pregunta sobre BioVolt…" maxlength="300" enterkeyhint="send">
+          <button class="btn btn-primary btn-round" type="submit" id="chatSend" aria-label="Enviar mensaje"></button>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+</main>
+
+<!-- ============================ PIE DE PÁGINA ============================ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-cols">
+      <div><h4>BioVolt AI</h4><p>Prototipo de plataforma de gestión sostenible para biomasa y energía. Datos de muestra tomados del respaldo SQL.</p></div>
+      <div><h4>Explorar</h4><a href="#/inicio">Inicio</a><a href="#/modulos">Módulos</a><a href="#/faq">Preguntas frecuentes</a></div>
+      <div><h4>Operación</h4><a href="#/operaciones">Operaciones</a><a href="#/inventario">Inventario</a><a href="#/plantas">Plantas</a></div>
+      <div><h4>Soporte</h4><a href="#/ayuda">Mesa de ayuda</a><a href="#/asistente">Asistente IA</a><a href="#/directorio">Directorio</a></div>
+    </div>
+    <p class="footer-bottom">BioVolt AI · Concepto 2026 · Entorno de demostración: la información mostrada no representa cifras operativas en tiempo real.</p>
+  </div>
+</footer>
+
+<!-- Detalle de solicitud -->
+<dialog id="ticketDialog" aria-labelledby="dlgTitle"><div id="dlgBody"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   A. DATOS DE MUESTRA (extraídos del respaldo BioVolt)
+   ===================================================================== */
+const DB = {
+  stats:{tables:45,clients:250,providers:200,plants:10,inventory:200,production:200,biomass:200,energy:"1345700.00",co2:"6230.00",waste:"11800.00",invoices:250},
+  plants:[
+    {id_planta:"1",nombre:"Planta Yumbo",ubicacion:"Yumbo, Valle del Cauca",capacidad:"10.50",estado:"Operativa"},
+    {id_planta:"2",nombre:"Planta San Alberto",ubicacion:"San Alberto, Cesar",capacidad:"13.00",estado:"Operativa"},
+    {id_planta:"3",nombre:"Planta Apartadó",ubicacion:"Apartadó, Antioquia",capacidad:"15.50",estado:"Operativa"},
+    {id_planta:"4",nombre:"Planta Yopal",ubicacion:"Yopal, Casanare",capacidad:"18.00",estado:"Operativa"},
+    {id_planta:"5",nombre:"Planta Galapa",ubicacion:"Galapa, Atlántico",capacidad:"20.50",estado:"En Mantenimiento"},
+    {id_planta:"6",nombre:"Planta El Espinal",ubicacion:"Espinal, Tolima",capacidad:"23.00",estado:"Operativa"},
+    {id_planta:"7",nombre:"Planta Puerto López",ubicacion:"Puerto López, Meta",capacidad:"25.50",estado:"Operativa"},
+    {id_planta:"8",nombre:"Planta Girón",ubicacion:"Girón, Santander",capacidad:"28.00",estado:"En Mantenimiento"},
+    {id_planta:"9",nombre:"Planta Neiva",ubicacion:"Neiva, Huila",capacidad:"30.50",estado:"Operativa"},
+    {id_planta:"10",nombre:"Planta Pasto",ubicacion:"Pasto, Nariño",capacidad:"33.00",estado:"Operativa"}
+  ],
+  clients:[
+    {nombre:"Mateo García",documento:"CC00000001",telefono:"3000000001",direccion:"Calle 1 # 2-10",email:"cliente001@correo.com"},
+    {nombre:"Gabriel Rodríguez",documento:"CC00000002",telefono:"3000000002",direccion:"Calle 2 # 3-10",email:"cliente002@correo.com"},
+    {nombre:"Cristopher Martínez",documento:"CC00000003",telefono:"3000000003",direccion:"Calle 3 # 4-10",email:"cliente003@correo.com"},
+    {nombre:"Nicolás López",documento:"CC00000004",telefono:"3000000004",direccion:"Calle 4 # 5-10",email:"cliente004@correo.com"},
+    {nombre:"Camila González",documento:"CC00000005",telefono:"3000000005",direccion:"Calle 5 # 6-10",email:"cliente005@correo.com"},
+    {nombre:"Camila Hernández",documento:"CC00000006",telefono:"3000000006",direccion:"Calle 6 # 7-10",email:"cliente006@correo.com"},
+    {nombre:"Daniela Pérez",documento:"CC00000007",telefono:"3000000007",direccion:"Calle 7 # 8-10",email:"cliente007@correo.com"},
+    {nombre:"Daniel Sánchez",documento:"CC00000008",telefono:"3000000008",direccion:"Calle 8 # 9-10",email:"cliente008@correo.com"}
+  ],
+  providers:[
+    {nombre:"BioAgro S.A.S. 1",nit:"900000001-1",telefono:"3150000001",direccion:"Zona Industrial 2",email:"proveedor1@biovolt.com.co"},
+    {nombre:"EcoMateria S.A.S. 1",nit:"900000002-2",telefono:"3150000002",direccion:"Zona Industrial 3",email:"proveedor2@biovolt.com.co"},
+    {nombre:"AgroVerde S.A.S. 1",nit:"900000003-3",telefono:"3150000003",direccion:"Zona Industrial 4",email:"proveedor3@biovolt.com.co"},
+    {nombre:"Biomasa Andina S.A.S. 1",nit:"900000004-4",telefono:"3150000004",direccion:"Zona Industrial 5",email:"proveedor4@biovolt.com.co"},
+    {nombre:"Energía Circular S.A.S. 1",nit:"900000005-5",telefono:"3150000005",direccion:"Zona Industrial 6",email:"proveedor5@biovolt.com.co"},
+    {nombre:"Recursos Naturales S.A.S. 1",nit:"900000006-6",telefono:"3150000006",direccion:"Zona Industrial 7",email:"proveedor6@biovolt.com.co"},
+    {nombre:"EcoCombustibles S.A.S. 1",nit:"900000007-7",telefono:"3150000007",direccion:"Zona Industrial 8",email:"proveedor7@biovolt.com.co"},
+    {nombre:"AgroSoluciones S.A.S. 1",nit:"900000008-8",telefono:"3150000008",direccion:"Zona Industrial 9",email:"proveedor8@biovolt.com.co"}
+  ],
+  biomass:[
+    {id_biomasa:"1",nombre:"Bagazo de caña 1",id_tipo:"1",cantidad:"1037.00",unidad:"kg"},
+    {id_biomasa:"2",nombre:"Cascarilla de arroz 1",id_tipo:"2",cantidad:"1074.00",unidad:"kg"},
+    {id_biomasa:"3",nombre:"Astilla de pino 1",id_tipo:"3",cantidad:"1111.00",unidad:"kg"},
+    {id_biomasa:"4",nombre:"Aserrín de madera 1",id_tipo:"4",cantidad:"1148.00",unidad:"kg"},
+    {id_biomasa:"5",nombre:"Residuos de café 1",id_tipo:"1",cantidad:"1185.00",unidad:"kg"},
+    {id_biomasa:"6",nombre:"Cáscara de coco 1",id_tipo:"2",cantidad:"1222.00",unidad:"kg"},
+    {id_biomasa:"7",nombre:"Rastrojo de maíz 1",id_tipo:"3",cantidad:"1259.00",unidad:"kg"},
+    {id_biomasa:"8",nombre:"Paja de trigo 1",id_tipo:"4",cantidad:"1296.00",unidad:"kg"},
+    {id_biomasa:"9",nombre:"Fibra de palma 1",id_tipo:"1",cantidad:"1333.00",unidad:"kg"},
+    {id_biomasa:"10",nombre:"Cáscara de plátano 1",id_tipo:"2",cantidad:"1370.00",unidad:"kg"}
+  ],
+  inventory:[
+    {id_biomasa:"1",id_almacen:"1",stock:"573.00"},{id_biomasa:"2",id_almacen:"2",stock:"646.00"},
+    {id_biomasa:"3",id_almacen:"3",stock:"719.00"},{id_biomasa:"4",id_almacen:"4",stock:"792.00"},
+    {id_biomasa:"5",id_almacen:"5",stock:"865.00"},{id_biomasa:"6",id_almacen:"6",stock:"938.00"},
+    {id_biomasa:"7",id_almacen:"7",stock:"1011.00"},{id_biomasa:"8",id_almacen:"8",stock:"1084.00"},
+    {id_biomasa:"9",id_almacen:"9",stock:"1157.00"},{id_biomasa:"10",id_almacen:"10",stock:"1230.00"}
+  ],
+  /* OJO: el HTML original llamaba a DB.productionRows pero nunca lo definía (la página fallaba).
+     Estas 8 filas usan las cantidades del gráfico original; FECHAS y UNIDAD son de ejemplo.
+     Reemplázalas por tus registros reales de produccion_energia. */
+  productionRows:[
+    {id_produccion:"1",id_planta:"1",fecha:"2024-01-05",cantidad:"3137.00",unidad:"kWh"},
+    {id_produccion:"2",id_planta:"2",fecha:"2024-01-12",cantidad:"3274.00",unidad:"kWh"},
+    {id_produccion:"3",id_planta:"3",fecha:"2024-01-19",cantidad:"3411.00",unidad:"kWh"},
+    {id_produccion:"4",id_planta:"4",fecha:"2024-01-26",cantidad:"3548.00",unidad:"kWh"},
+    {id_produccion:"5",id_planta:"5",fecha:"2024-02-02",cantidad:"3685.00",unidad:"kWh"},
+    {id_produccion:"6",id_planta:"6",fecha:"2024-02-09",cantidad:"3822.00",unidad:"kWh"},
+    {id_produccion:"7",id_planta:"7",fecha:"2024-02-16",cantidad:"3959.00",unidad:"kWh"},
+    {id_produccion:"8",id_planta:"8",fecha:"2024-02-23",cantidad:"4096.00",unidad:"kWh"}
+  ]
+};
+
+/* =====================================================================
+   B. UTILIDADES
+   ===================================================================== */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const nf  = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0, useGrouping: 'always' });
+const nf2 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+};
+const fmtDate = ts => new Date(ts).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+
+/* Íconos SVG en línea (trazo, heredan el color del texto) */
+const ICONS = {
+  bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  building:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+  lifebuoy:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+  cycle:'<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  send:'<path d="M12 19V5M5 12l7-7 7 7"/>',
+  sparkles:'<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>'
+};
+const icon = (name, size = 20) =>
+  `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ''}</svg>`;
+const hydrateIcons = (root = document) => $$('[data-icon]', root).forEach(el => { el.innerHTML = icon(el.dataset.icon, +el.dataset.size || 20); });
+
+/* Pills de estado */
+const pill = (txt, cls, plain) => `<span class="pill pill-${cls}${plain ? ' pill-plain' : ''}">${esc(txt)}</span>`;
+const plantPill  = e => pill(e === 'Operativa' ? 'Operativa' : 'En mantenimiento', e === 'Operativa' ? 'ok' : 'warn');
+const prioPill   = p => pill(p, { Baja:'muted', Media:'info', Alta:'warn', Crítica:'danger' }[p] || 'muted');
+const statusPill = s => pill(s, { 'Abierto':'info', 'En proceso':'warn', 'Resuelto':'ok' }[s] || 'muted');
+
+let toastTimer;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+function emptyState(el, ico, title, text, btnLabel, btnFn){
+  el.innerHTML = `<span class="ico-circle">${icon(ico, 26)}</span><h3 class="panel-title">${esc(title)}</h3><p>${esc(text)}</p>` +
+    (btnLabel ? `<button class="btn btn-outline btn-sm" type="button">${esc(btnLabel)}</button>` : '');
+  if (btnLabel) $('button', el).addEventListener('click', btnFn);
+  el.hidden = false;
+}
+
+/* =====================================================================
+   C. TEMA CLARO / OSCURO
+   ===================================================================== */
+function applyTheme(t, persist){
+  document.documentElement.setAttribute('data-theme', t);
+  $('meta[name="theme-color"]').setAttribute('content', t === 'light' ? '#ffffff' : '#000000');
+  const b = $('#themeBtn');
+  b.innerHTML = icon(t === 'light' ? 'moon' : 'sun', 18);
+  b.setAttribute('aria-label', t === 'light' ? 'Activar modo oscuro' : 'Activar modo claro');
+  if (persist && b.firstElementChild) b.firstElementChild.classList.add('spin');
+  if (persist) store.set('bvTheme', t);
+}
+$('#themeBtn').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light', true));
+if (window.matchMedia) {
+  matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', e => { if (!store.get('bvTheme')) applyTheme(e.matches ? 'light' : 'dark', false); });
+}
+
+/* =====================================================================
+   D. NAVEGACIÓN (rutas por hash, funciona abriendo el archivo con doble clic)
+   ===================================================================== */
+const TITLES = { inicio:'Inicio', operaciones:'Operaciones', inventario:'Inventario y biomasa', plantas:'Plantas', directorio:'Directorio', analitica:'Analítica inteligente', ayuda:'Mesa de ayuda', asistente:'Asistente IA' };
+const ALIAS = { faq:'inicio', modulos:'inicio' };
+const nav = $('#siteNav'), menuBtn = $('#menuBtn');
+
+/* Píldora líquida de la barra: se desliza al enlace activo y se "aplasta" al llegar */
+const liquid = $('#navLiquid');
+let liquidPlaced = false;
+function moveLiquid(){
+  const a = $('#navLinks a[aria-current="page"]');
+  if (!liquid || !a) return;
+  if (!window.matchMedia || !window.matchMedia('(min-width:1068px)').matches) { liquid.classList.remove('on'); liquidPlaced = false; return; }
+  const first = !liquidPlaced;
+  if (first) liquid.classList.add('snap');
+  liquid.style.setProperty('--x', a.offsetLeft + 'px');
+  liquid.style.setProperty('--y', a.offsetTop + 'px');
+  liquid.style.setProperty('--w', a.offsetWidth + 'px');
+  liquid.style.setProperty('--h', a.offsetHeight + 'px');
+  liquid.classList.add('on');
+  void liquid.offsetWidth;
+  if (first) { liquid.classList.remove('snap'); liquidPlaced = true; }
+  else { liquid.classList.remove('squish'); void liquid.offsetWidth; liquid.classList.add('squish'); }
+}
+window.addEventListener('resize', () => { liquidPlaced = false; moveLiquid(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { liquidPlaced = false; moveLiquid(); });
+let firstRoute = true;
+
+function setMenu(open){
+  nav.classList.toggle('open', open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+  menuBtn.innerHTML = icon(open ? 'x' : 'menu', 20);
+}
+menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
+$$('#navLinks a').forEach(a => a.addEventListener('click', () => setMenu(false)));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); } });
+
+function route(){
+  const raw = location.hash.replace(/^#\/?/, '');
+  const anchor = ALIAS[raw] ? raw : null;
+  let v = ALIAS[raw] || raw;
+  if (!TITLES[v]) v = 'inicio';
+  $$('.view').forEach(s => { s.hidden = s.dataset.view !== v; });
+  $$('#navLinks a').forEach(a => a.dataset.route === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  moveLiquid();
+  document.title = (v === 'inicio' ? 'BioVolt AI' : TITLES[v] + ' · BioVolt AI') + (v === 'inicio' ? ' · Plataforma de gestión sostenible' : '');
+  setMenu(false);
+  const target = anchor && $('#' + anchor);
+  if (target) {
+    requestAnimationFrame(() => target.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }));
+  } else {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (!firstRoute) { const h = $('#view-' + v + ' h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
+  }
+  firstRoute = false;
+}
+window.addEventListener('hashchange', route);
+
+/* =====================================================================
+   E. INICIO, OPERACIONES, INVENTARIO, PLANTAS, DIRECTORIO, ANALÍTICA
+   ===================================================================== */
+function bindStats(){
+  const S = DB.stats;
+  const map = { clients:nf.format(S.clients), providers:nf.format(S.providers), plants:nf.format(S.plants), production:nf.format(S.production),
+    invoices:nf.format(S.invoices), energy:nf.format(S.energy), co2:nf.format(S.co2) + ' t', waste:nf.format(S.waste) + ' t' };
+  $$('[data-bind]').forEach(el => { el.textContent = map[el.dataset.bind] ?? '—'; });
+}
+const plantName = id => (DB.plants.find(p => p.id_planta === id) || {}).nombre || '—';
+const maxCap = Math.max(...DB.plants.map(p => +p.capacidad));
+
+function renderChart(){
+  const rows = DB.productionRows.slice(0, 8), max = Math.max(...rows.map(r => +r.cantidad));
+  const c = $('#productionChart');
+  c.setAttribute('aria-label', 'Gráfico de barras con ' + rows.length + ' registros de producción: ' + rows.map((r, i) => 'R' + (i + 1) + ' ' + nf.format(r.cantidad)).join(', '));
+  c.innerHTML = rows.map((r, i) =>
+    `<div class="bar-col" title="${esc(plantName(r.id_planta))}: ${nf.format(r.cantidad)} ${esc(r.unidad)}"><span class="bar-val">${nf.format(r.cantidad)}</span><div class="bar-track"><div class="bar" data-h="${(r.cantidad / max * 100).toFixed(1)}"></div></div><span class="bar-label">R${i + 1}</span></div>`).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() => $$('.bar', c).forEach(b => { b.style.height = b.dataset.h + '%'; })));
+}
+function plantRow(p){
+  const pct = (+p.capacidad / maxCap * 100).toFixed(0);
+  return `<div class="plant-row"><div><div class="plant-name">${esc(p.nombre)}</div><div class="small muted">${esc(p.ubicacion)}</div></div>${plantPill(p.estado)}
+    <div class="track" role="img" aria-label="Capacidad ${nf2.format(p.capacidad)}"><span style="width:${pct}%"></span></div></div>`;
+}
+const MODULES = [
+  ['cycle','Biomasa y calidad','Tipos de biomasa, cantidades, pruebas de eficiencia y control de calidad.','inventario'],
+  ['bolt','Producción energética','Registros de generación, consumo de biomasa y subproductos.','operaciones'],
+  ['building','Gestión de plantas','Capacidad, estado, presupuestos, equipos y mantenimiento.','plantas'],
+  ['truck','Compras y proveedores','Compras, acuerdos, contratos y detalles de abastecimiento.','directorio'],
+  ['receipt','Facturación y pagos','Facturas, detalles, métodos de pago y recaudos.','analitica'],
+  ['lifebuoy','Soporte e incidencias','Incidencias de red, mesa de ayuda y seguimiento de solicitudes.','ayuda'],
+  ['leaf','Gestión ambiental','Control ambiental, CO₂ evitado, residuos y bonos de carbono.','analitica'],
+  ['users','Talento humano','Empleados, roles, turnos, capacitaciones y certificaciones.',null],
+  ['file','Proyectos y reportes','Seguimiento de proyectos, documentos y reportes.',null]
+];
+function renderModules(){
+  $('#moduleGrid').innerHTML = MODULES.map(m =>
+    `<article class="card module-card"><span class="ico-circle">${icon(m[0], 22)}</span><h3 class="h-sm">${esc(m[1])}</h3><p>${esc(m[2])}</p>` +
+    (m[3] ? `<a class="btn btn-outline btn-sm" href="#/${m[3]}" aria-label="Abrir módulo ${esc(m[1])}">Abrir módulo</a>` : `<span class="pill pill-muted pill-plain" style="align-self:flex-start;margin-top:auto">Próximamente</span>`) + `</article>`).join('');
+}
+const FAQ = [
+  ['¿Qué es BioVolt AI?','Es un prototipo de plataforma para gestionar la operación de BioVolt: plantas, biomasa, inventario, producción, directorio, soporte y un asistente conversacional.'],
+  ['¿Los datos son reales?','No. Son una muestra tomada del respaldo SQL de BioVolt y sirven para probar la interfaz. No representan cifras operativas en tiempo real.'],
+  ['¿Cómo registro una solicitud de soporte?','Entra a Mesa de ayuda, completa el formulario (nombre, correo, asunto, categoría, prioridad y descripción) y envíalo. Podrás verla en el listado, abrir su detalle y cambiar su estado.'],
+  ['¿Dónde se guardan las solicitudes?','En el almacenamiento local de este navegador (localStorage). Si borras los datos del sitio o abres la página en otro navegador, no aparecerán. Una fase posterior las guardará en MySQL.'],
+  ['¿El asistente usa inteligencia artificial real?','Sí. Las preguntas se envían a un modelo de IA generativa a través de una función segura del servidor. Si el servicio no está disponible, responde con una base de conocimiento local.'],
+  ['¿Puedo cambiar entre modo claro y oscuro?','Sí. Usa el botón de sol o luna en la barra superior. La página sigue por defecto la preferencia de tu sistema y recuerda tu elección.']
+];
+function renderFaq(){
+  const el = $('#faqList');
+  el.innerHTML = FAQ.map((f, i) =>
+    `<div class="faq-item"><h3><button class="faq-q" type="button" id="faq-q${i}" aria-expanded="false" aria-controls="faq-a${i}"><span>${esc(f[0])}</span>${icon('plus', 22)}</button></h3>
+     <div class="faq-a" id="faq-a${i}" role="region" aria-labelledby="faq-q${i}"><div><p>${esc(f[1])}</p></div></div></div>`).join('');
+  el.addEventListener('click', e => {
+    const b = e.target.closest('.faq-q'); if (!b) return;
+    const item = b.closest('.faq-item'), open = !item.classList.contains('open');
+    item.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open));
+  });
+}
+function renderHome(){
+  renderChart();
+  $('#plantCount').textContent = DB.plants.length + ' plantas';
+  $('#plantList').innerHTML = DB.plants.slice(0, 6).map(plantRow).join('');
+  renderModules(); renderFaq();
+}
+function renderOperations(){
+  $('#productionRows').innerHTML = DB.productionRows.map(r =>
+    `<tr><td>#${esc(r.id_produccion)}</td><td>${esc(plantName(r.id_planta))}</td><td>${esc(r.fecha)}</td><td>${nf.format(r.cantidad)}</td><td>${esc(r.unidad)}</td></tr>`).join('');
+}
+function renderInventory(q = ''){
+  const nq = norm(q.trim());
+  const arr = DB.biomass.filter(b => norm(b.nombre).includes(nq));
+  $('#invRows').innerHTML = arr.map(b => {
+    const inv = DB.inventory.find(i => i.id_biomasa === b.id_biomasa);
+    const pct = inv ? Math.min(100, +inv.stock / +b.cantidad * 100).toFixed(0) : 0;
+    return `<tr><td><b>${esc(b.nombre)}</b></td><td>#${esc(b.id_biomasa)}</td><td>Tipo ${esc(b.id_tipo)}</td><td>${nf.format(b.cantidad)} ${esc(b.unidad)}</td>
+      <td>${inv ? '#' + esc(inv.id_almacen) : '—'}</td>
+      <td>${inv ? nf.format(inv.stock) + ' ' + esc(b.unidad) : '—'}<div class="track" style="margin-top:6px;min-width:90px"><span style="width:${pct}%"></span></div></td></tr>`;
+  }).join('');
+  $('#invCount').textContent = arr.length + (arr.length === 1 ? ' registro visible' : ' registros visibles');
+  const empty = $('#invEmpty'); $('#invRows').closest('.table-wrap').hidden = !!(!arr.length);
+  if (!arr.length) emptyState(empty, 'search', 'Sin resultados', 'No encontramos biomasa que coincida con “' + q.trim() + '”.', 'Limpiar búsqueda', () => { $('#invSearch').value = ''; renderInventory(); $('#invSearch').focus(); });
+  else empty.hidden = true;
+}
+let plantFilter = 'Todas';
+function renderPlants(){
+  const opts = ['Todas', 'Operativa', 'En Mantenimiento'];
+  $('#plantFilters').innerHTML = opts.map(o => `<button class="chip" type="button" aria-pressed="${o === plantFilter}" data-f="${o}">${o === 'En Mantenimiento' ? 'En mantenimiento' : o}</button>`).join('');
+  const arr = DB.plants.filter(p => plantFilter === 'Todas' || p.estado === plantFilter);
+  $('#plantCards').innerHTML = arr.map(p =>
+    `<article class="card module-card" style="min-height:190px"><span class="ico-circle">${icon('building', 20)}</span><div><h3 class="panel-title">${esc(p.nombre)}</h3><p>${esc(p.ubicacion)}</p></div>
+     <div class="module-foot"><span class="small muted">Capacidad: <b style="color:var(--on-surface)">${nf2.format(p.capacidad)}</b></span>${plantPill(p.estado)}</div></article>`).join('');
+}
+$('#plantFilters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; plantFilter = b.dataset.f; renderPlants(); $('#plantFilters [aria-pressed="true"]').focus(); });
+
+let dirMode = 'clients';
+function renderDirectory(){
+  const q = norm($('#dirSearch').value.trim());
+  const all = dirMode === 'clients' ? DB.clients : DB.providers;
+  const arr = all.filter(x => norm(x.nombre).includes(q));
+  $('#dirIdHead').textContent = dirMode === 'clients' ? 'Documento' : 'NIT';
+  $('#dirRows').innerHTML = arr.map(x => `<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.documento || x.nit)}</td><td>${esc(x.telefono || '—')}</td><td>${esc(x.email || '—')}</td><td>${esc(x.direccion || '—')}</td></tr>`).join('');
+  const total = dirMode === 'clients' ? DB.stats.clients : DB.stats.providers;
+  $('#dirNote').textContent = 'Mostrando ' + arr.length + ' de ' + all.length + ' registros de muestra (la base completa tiene ' + nf.format(total) + ').';
+  $('#dirRows').closest('.table-wrap').hidden = !arr.length;
+  const empty = $('#dirEmpty');
+  if (!arr.length) emptyState(empty, 'search', 'Sin resultados', 'No hay ' + (dirMode === 'clients' ? 'clientes' : 'proveedores') + ' con ese nombre.', 'Limpiar búsqueda', () => { $('#dirSearch').value = ''; renderDirectory(); $('#dirSearch').focus(); });
+  else empty.hidden = true;
+}
+function setDir(mode){
+  dirMode = mode;
+  $('#tabClients').setAttribute('aria-selected', String(mode === 'clients'));
+  $('#tabProviders').setAttribute('aria-selected', String(mode === 'providers'));
+  renderDirectory();
+}
+$('#tabClients').addEventListener('click', () => setDir('clients'));
+$('#tabProviders').addEventListener('click', () => setDir('providers'));
+$('#dirSearch').addEventListener('input', renderDirectory);
+$('#invSearch').addEventListener('input', e => renderInventory(e.target.value));
+
+function renderAnalytics(){
+  const S = DB.stats;
+  const open = tickets.filter(t => t.status !== 'Resuelto').length;
+  const items = [
+    ['Inventario', 'El respaldo contiene ' + nf.format(S.inventory) + ' registros de inventario asociados a biomasa y almacenes.'],
+    ['Operación', 'Se identifican ' + S.plants + ' plantas; ' + DB.plants.filter(p => p.estado !== 'Operativa').length + ' figuran en mantenimiento (' + DB.plants.filter(p => p.estado !== 'Operativa').map(p => p.nombre.replace('Planta ', '')).join(' y ') + '). Revísalas antes de programar producción.'],
+    ['Impacto ambiental', 'Los registros suman ' + nf.format(S.co2) + ' toneladas de CO₂ evitado y ' + nf.format(S.waste) + ' toneladas de residuos procesadas.'],
+    ['Calidad de datos', 'La tabla de producción declara unidades en cada registro (kWh y MWh). Conviene normalizarlas antes de comparar o proyectar volúmenes.'],
+    ['Mesa de ayuda', 'Hay ' + open + ' solicitud' + (open === 1 ? '' : 'es') + ' sin resolver de ' + tickets.length + ' registradas en este navegador.']
+  ];
+  $('#insightList').innerHTML = items.map(x => `<div class="metric-tile"><p class="eyebrow">${esc(x[0])}</p><p style="font-size:15px;margin-top:4px">${esc(x[1])}</p></div>`).join('');
+  $('#capacityList').innerHTML = DB.plants.map(p =>
+    `<div class="plant-row"><span class="plant-name">${esc(p.nombre.replace('Planta ', ''))}</span><span class="small muted">${nf2.format(p.capacidad)}</span><div class="track" role="img" aria-label="${esc(p.nombre)}: ${nf2.format(p.capacidad)}"><span style="width:${(+p.capacidad / maxCap * 100).toFixed(0)}%"></span></div></div>`).join('');
+}
+
+/* =====================================================================
+   F. MESA DE AYUDA (persistencia en localStorage)
+   ===================================================================== */
+const TKEY = 'bvTickets_v2';
+const STATUSES = ['Abierto', 'En proceso', 'Resuelto'];
+const hoursAgo = h => Date.now() - h * 3600000;
+const seedTickets = () => [
+  { id:'BV-2041', subject:'No se actualiza el inventario de biomasa', name:'Equipo de Inventario', email:'inventario@biovolt.demo', category:'Inventario', priority:'Alta', status:'En proceso',
+    description:'Después del último cierre, las cantidades de biomasa no se reflejan en el módulo de inventario. Ocurre en varios almacenes.', createdAt:hoursAgo(3) },
+  { id:'BV-2040', subject:'Solicitud de acceso al panel operativo', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Sistemas', priority:'Media', status:'Abierto',
+    description:'Necesito acceso de lectura al panel de operaciones para revisar la producción semanal.', createdAt:hoursAgo(5) },
+  { id:'BV-2039', subject:'Error al generar reporte de producción', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Producción', priority:'Baja', status:'Resuelto',
+    description:'El reporte mensual se quedaba cargando al exportar. Se resolvió reiniciando el servicio de reportes.', createdAt:hoursAgo(30) }
+];
+function loadTickets(){
+  try { const a = JSON.parse(store.get(TKEY)); if (Array.isArray(a)) return a; } catch (e) {}
+  return seedTickets();
+}
+let tickets = loadTickets();
+const saveTickets = () => store.set(TKEY, JSON.stringify(tickets));
+const tState = { q:'', status:'Todos', prio:'' };
+
+function renderTicketStats(){
+  const c = s => tickets.filter(t => t.status === s).length;
+  $('#ticketStats').innerHTML = STATUSES.map(s => `<div class="card" style="padding:16px 18px"><p class="small muted">${s}${s === 'Abierto' ? 's' : s === 'Resuelto' ? 's' : 's'}</p><div class="stat-value" style="margin:4px 0 0;font-size:30px">${c(s)}</div></div>`).join('');
+}
+function renderTickets(){
+  renderTicketStats();
+  $('#statusFilters').innerHTML = ['Todos', ...STATUSES].map(s => `<button class="chip" type="button" data-s="${s}" aria-pressed="${tState.status === s}">${s}</button>`).join('');
+  const q = norm(tState.q.trim());
+  const arr = tickets.filter(t =>
+    (tState.status === 'Todos' || t.status === tState.status) &&
+    (!tState.prio || t.priority === tState.prio) &&
+    (!q || norm([t.id, t.subject, t.name, t.category].join(' ')).includes(q))
+  ).sort((a, b) => b.createdAt - a.createdAt);
+  $('#ticketCount').textContent = arr.length + ' de ' + tickets.length + (tickets.length === 1 ? ' solicitud' : ' solicitudes');
+  const list = $('#ticketList'), empty = $('#ticketEmpty');
+  list.innerHTML = arr.map(t =>
+    `<button type="button" class="card ticket" data-id="${esc(t.id)}" aria-label="Ver detalle de ${esc(t.id)}: ${esc(t.subject)}">
+       <span class="ticket-main"><span class="ticket-title">${esc(t.subject)}</span><span class="small muted">${esc(t.id)} · ${esc(t.category)} · ${esc(t.name)} · ${esc(fmtDate(t.createdAt))}</span></span>
+       <span class="ticket-pills">${prioPill(t.priority)}${statusPill(t.status)}</span></button>`).join('');
+  if (arr.length) empty.hidden = true;
+  else if (!tickets.length) emptyState(empty, 'inbox', 'Aún no hay solicitudes', 'Cuando registres la primera aparecerá aquí.', 'Crear solicitud', focusForm);
+  else emptyState(empty, 'search', 'Sin resultados', 'Ninguna solicitud coincide con los filtros actuales.', 'Limpiar filtros', () => { tState.q = ''; tState.status = 'Todos'; tState.prio = ''; $('#tSearch').value = ''; $('#tPrio').value = ''; renderTickets(); });
+}
+$('#tSearch').addEventListener('input', e => { tState.q = e.target.value; renderTickets(); });
+$('#tPrio').addEventListener('change', e => { tState.prio = e.target.value; renderTickets(); });
+$('#statusFilters').addEventListener('click', e => {
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  tState.status = b.dataset.s; renderTickets(); $('#statusFilters [aria-pressed="true"]').focus();
+});
+function focusForm(){ $('#ticketForm').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' }); setTimeout(() => $('#tName').focus({ preventScroll: true }), 250); }
+$('#newTicketBtn').addEventListener('click', focusForm);
+
+/* --- Formulario con validación --- */
+const RULES = {
+  name:        v => v.trim().length >= 3 || 'Escribe tu nombre (mínimo 3 caracteres).',
+  email:       v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || 'Escribe un correo válido, por ejemplo nombre@empresa.com.',
+  subject:     v => (v.trim().length >= 5 && v.trim().length <= 90) || 'El asunto debe tener entre 5 y 90 caracteres.',
+  category:    v => !!v || 'Selecciona una categoría.',
+  priority:    v => !!v || 'Selecciona una prioridad.',
+  description: v => v.trim().length >= 15 || 'Describe el problema con al menos 15 caracteres.'
+};
+const form = $('#ticketForm');
+function fieldOf(name){ return form.elements[name]; }
+function validateField(name){
+  const el = fieldOf(name), err = $('#' + el.id + '-err'), r = RULES[name](el.value);
+  const ok = r === true;
+  el.setAttribute('aria-invalid', String(!ok));
+  err.textContent = ok ? '' : r; err.hidden = ok;
+  return ok;
+}
+Object.keys(RULES).forEach(n => {
+  const el = fieldOf(n);
+  el.addEventListener('blur', () => { if (el.value || el.getAttribute('aria-invalid') === 'true') validateField(n); });
+  el.addEventListener('input', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
+  el.addEventListener('change', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
+});
+$('#tDescription').addEventListener('input', e => { $('#tDescCount').textContent = e.target.value.length + '/500'; });
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const results = Object.keys(RULES).map(n => [n, validateField(n)]);
+  const bad = results.find(r => !r[1]);
+  if (bad) { fieldOf(bad[0]).focus(); return; }
+  const next = Math.max(2040, ...tickets.map(t => parseInt(String(t.id).replace(/\D/g, ''), 10) || 0)) + 1;
+  const t = { id:'BV-' + next, subject:fieldOf('subject').value.trim(), name:fieldOf('name').value.trim(), email:fieldOf('email').value.trim(), category:fieldOf('category').value,
+    priority:fieldOf('priority').value, status:'Abierto', description:fieldOf('description').value.trim(), createdAt:Date.now() };
+  tickets.unshift(t); saveTickets();
+  form.reset(); $('#tDescCount').textContent = '0/500';
+  $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
+  $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
+  tState.q = ''; tState.status = 'Todos'; tState.prio = ''; $('#tSearch').value = ''; $('#tPrio').value = '';
+  renderTickets(); renderAnalytics();
+  toast('Solicitud ' + t.id + ' registrada');
+});
+$('#restoreDemo').addEventListener('click', () => {
+  tickets = seedTickets(); saveTickets(); renderTickets(); renderAnalytics(); toast('Datos de demostración restaurados');
+});
+
+/* --- Detalle de solicitud (diálogo) --- */
+const dlg = $('#ticketDialog'), dlgBody = $('#dlgBody');
+let currentId = null, delTimer;
+function renderDialog(t){
+  dlgBody.innerHTML = `<div class="dlg">
+    <div class="dlg-top"><div><p class="eyebrow">${esc(t.id)}</p><h2 class="h-sm" id="dlgTitle" style="font-size:24px;margin-top:2px;overflow-wrap:anywhere">${esc(t.subject)}</h2></div>
+      <button class="icon-btn" type="button" data-close aria-label="Cerrar detalle">${icon('x', 20)}</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${prioPill(t.priority)}${statusPill(t.status)}</div>
+    <dl class="dl">
+      <div><dt>Solicitante</dt><dd>${esc(t.name)}</dd></div><div><dt>Correo</dt><dd>${esc(t.email)}</dd></div>
+      <div><dt>Categoría</dt><dd>${esc(t.category)}</dd></div><div><dt>Registrada</dt><dd>${esc(fmtDate(t.createdAt))}</dd></div>
+    </dl>
+    <div><p class="field-label" style="margin-bottom:6px">Descripción</p><div class="desc-box">${esc(t.description)}</div></div>
+    <div><p class="field-label" id="stLabel" style="margin-bottom:8px">Cambiar estado</p>
+      <div class="seg-group" role="group" aria-labelledby="stLabel">${STATUSES.map(s => `<button type="button" class="seg${s === t.status ? ' on' : ''}" data-status="${s}" aria-pressed="${s === t.status}">${s}</button>`).join('')}</div></div>
+    <div class="dlg-actions"><button class="btn btn-danger btn-sm" type="button" data-del>${icon('trash', 16)}Eliminar</button><button class="btn btn-outline btn-sm" type="button" data-close>Cerrar</button></div>
+  </div>`;
+}
+function openTicket(id){
+  const t = tickets.find(x => x.id === id); if (!t) return;
+  currentId = id; renderDialog(t);
+  if (!dlg.open) dlg.showModal();
+}
+$('#ticketList').addEventListener('click', e => { const b = e.target.closest('.ticket'); if (b) openTicket(b.dataset.id); });
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+dlg.addEventListener('close', () => { currentId = null; clearTimeout(delTimer); });
+dlgBody.addEventListener('click', e => {
+  if (e.target.closest('[data-close]')) { dlg.close(); return; }
+  const t = tickets.find(x => x.id === currentId); if (!t) return;
+  const sb = e.target.closest('[data-status]');
+  if (sb) {
+    if (t.status !== sb.dataset.status) {
+      t.status = sb.dataset.status; saveTickets(); renderTickets(); renderAnalytics(); renderDialog(t);
+      toast(t.id + ' → ' + t.status);
+    }
+    const again = dlgBody.querySelector('[data-status="' + t.status + '"]'); if (again) again.focus();
+    return;
+  }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (!del.dataset.confirm) {
+      del.dataset.confirm = '1'; del.textContent = '¿Confirmar eliminación?';
+      clearTimeout(delTimer); delTimer = setTimeout(() => { if (currentId) renderDialog(t); }, 4000);
+    } else {
+      tickets = tickets.filter(x => x.id !== t.id); saveTickets(); dlg.close(); renderTickets(); renderAnalytics(); toast(t.id + ' eliminada');
+    }
+  }
+});
+
+/* =====================================================================
+   G. ASISTENTE IA (simulado)
+   ===================================================================== */
+const history = [];   // [{role:'user'|'assistant', content}] — listo para enviar a una API real
+let chatBusy = false;
+
+/* Base de conocimiento local: coincidencia por palabras clave (inicio de palabra, sin tildes) */
+const KB = [
+  { keys:['hola','buenas','buenos dias','buen dia','hey','saludos'], answer:() => '¡Hola! Soy el asistente de BioVolt. Puedo orientarte sobre biomasa, plantas, inventario, producción, clientes, proveedores, impacto ambiental y la mesa de ayuda. ¿Qué te gustaría consultar?' },
+  { keys:['gracias','genial','perfecto','excelente'], answer:() => '¡Con gusto! Si necesitas algo más sobre BioVolt, aquí estoy.' },
+  { keys:['ayuda con','que puedes','que sabes','que haces','opciones','como funciona'], answer:() => 'Puedo responder sobre: biomasa, plantas, inventario, producción de energía, clientes, proveedores, facturas, impacto ambiental y mesa de ayuda. Prueba con “¿Cuántas plantas hay?” o “¿Qué plantas están en mantenimiento?”.' },
+  { keys:['mantenimiento'], answer:() => { const m = DB.plants.filter(p => p.estado !== 'Operativa'); return 'Actualmente ' + m.length + ' plantas figuran en mantenimiento: ' + m.map(p => p.nombre + ' (' + p.ubicacion + ')').join(' y ') + '.'; } },
+  { keys:['planta','capacidad','instalacion'], answer:() => { const ok = DB.plants.filter(p => p.estado === 'Operativa').length; return 'BioVolt tiene ' + DB.stats.plants + ' plantas registradas: ' + ok + ' operativas y ' + (DB.plants.length - ok) + ' en mantenimiento. La de mayor capacidad es ' + DB.plants.reduce((a, b) => +b.capacidad > +a.capacidad ? b : a).nombre + '. Puedes ver el detalle en la sección Plantas.'; } },
+  { keys:['biomasa','residuo','bagazo','cascarilla','material'], answer:() => 'En la muestra hay biomasa como ' + DB.biomass.slice(0, 5).map(b => b.nombre.replace(/ \d+$/, '').toLowerCase()).join(', ') + ' y más. La base contiene ' + nf.format(DB.stats.biomass) + ' registros de biomasa, además de tablas de calidad y pruebas de eficiencia. Consúltalos en Inventario.' },
+  { keys:['inventario','stock','almacen','existencia'], answer:() => 'El respaldo incluye ' + nf.format(DB.stats.inventory) + ' registros de inventario. En la sección Inventario puedes buscar materiales y comparar el stock disponible contra la cantidad registrada.' },
+  { keys:['produccion','energia','kwh','mwh','generacion'], answer:() => 'La base tiene ' + nf.format(DB.stats.production) + ' registros de producción de energía, con un total de ' + nf.format(DB.stats.energy) + ' (cantidad sumada). Ojo: los registros mezclan kWh y MWh, así que conviene normalizar las unidades antes de comparar.' },
+  { keys:['cliente','comprador'], answer:() => 'BioVolt tiene ' + nf.format(DB.stats.clients) + ' clientes registrados. Puedes buscarlos por nombre en el Directorio.' },
+  { keys:['proveedor','abastecimiento','suministro'], answer:() => 'Hay ' + nf.format(DB.stats.providers) + ' proveedores registrados (por ejemplo, ' + DB.providers.slice(0, 3).map(p => p.nombre).join(', ') + '). Los encuentras en el Directorio.' },
+  { keys:['factura','pago','facturacion'], answer:() => 'El respaldo contiene ' + nf.format(DB.stats.invoices) + ' facturas registradas, junto con detalles y métodos de pago.' },
+  { keys:['co2','carbono','ambiental','ambiente','emision','impacto'], answer:() => 'Los registros ambientales suman ' + nf.format(DB.stats.co2) + ' toneladas de CO₂ evitado y ' + nf.format(DB.stats.waste) + ' toneladas de residuos procesadas. Hay más contexto en Analítica.' },
+  { keys:['ticket','soporte','mesa de ayuda','solicitud','incidencia','problema'], answer:() => { const open = tickets.filter(t => t.status !== 'Resuelto').length; return 'En la Mesa de ayuda puedes registrar solicitudes con categoría y prioridad, filtrarlas y cambiar su estado. Ahora mismo hay ' + open + ' sin resolver de ' + tickets.length + ' guardadas en este navegador.'; } },
+  { keys:['tema','modo oscuro','modo claro','oscuro'], answer:() => 'Puedes alternar entre modo claro y oscuro con el botón de sol o luna de la barra superior.' }
+];
+function localAnswer(msg){
+  const t = ' ' + norm(msg).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  let best = null, bestScore = 0;
+  KB.forEach(item => {
+    const score = item.keys.reduce((s, k) => s + (t.includes(' ' + norm(k)) ? 1 : 0), 0);
+    if (score > bestScore) { best = item; bestScore = score; }
+  });
+  return best ? best.answer()
+    : 'No tengo una respuesta para eso en esta demostración. Prueba con temas como biomasa, plantas, inventario, producción, clientes, proveedores, impacto ambiental o mesa de ayuda.';
+}
+
+/* ---------------------------------------------------------------------
+   PUNTO ÚNICO DE INTEGRACIÓN DE IA
+   Para usar un modelo real, reemplaza el cuerpo de esta función. Debe
+   devolver una promesa con el texto de la respuesta. Ejemplo:
+
+     const res = await fetch('/api/chat', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ message: userMessage, history })
+     });
+     if (!res.ok) throw new Error('HTTP ' + res.status);
+     return (await res.json()).reply;
+
+   Importante: la llamada a la IA debe pasar por TU servidor. Nunca pongas
+   la clave de API dentro de este archivo.
+   --------------------------------------------------------------------- */
+async function getAIResponse(userMessage, history){
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMessage, history })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!data.reply) throw new Error('La función no devolvió una respuesta.');
+    return data.reply;
+  } catch (err) {
+    console.error('IA no disponible, usando base local:', err);
+    return localAnswer(userMessage);
+  }
+}
+
+const chatLog = $('#chatLog');
+const scrollChat = () => chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: reduceMotion() ? 'auto' : 'smooth' });
+function addMsg(role, text, isError){
+  $('#chatEmpty').hidden = true;
+  const row = document.createElement('div'); row.className = 'msg-row ' + role + (isError ? ' error' : '');
+  const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text;
+  const m = document.createElement('div'); m.className = 'msg-time small muted';
+  m.textContent = (role === 'user' ? 'Tú' : 'BioVolt Assistant') + ' · ' + new Date().toLocaleTimeString('es-CO', { hour:'numeric', minute:'2-digit' });
+  row.append(b, m); chatLog.append(row); scrollChat();
+}
+function showTyping(){
+  const row = document.createElement('div'); row.className = 'msg-row assistant'; row.id = 'typingRow';
+  row.innerHTML = '<div class="bubble typing" aria-hidden="true"><i></i><i></i><i></i></div><span class="sr-only">BioVolt Assistant está escribiendo…</span>';
+  chatLog.append(row); scrollChat();
+}
+const hideTyping = () => { const t = $('#typingRow'); if (t) t.remove(); };
+async function sendMessage(text){
+  text = text.trim(); if (!text || chatBusy) return;
+  chatBusy = true; $('#chatSend').disabled = true; chatLog.setAttribute('aria-busy', 'true');
+  $('#chatInput').value = '';
+  addMsg('user', text); history.push({ role:'user', content:text }); showTyping();
+  try {
+    const answer = await getAIResponse(text, history);
+    hideTyping(); addMsg('assistant', answer); history.push({ role:'assistant', content:answer });
+  } catch (err) {
+    hideTyping(); addMsg('assistant', 'No pude responder en este momento. Inténtalo de nuevo en unos segundos.', true);
+  } finally {
+    chatBusy = false; $('#chatSend').disabled = false; chatLog.removeAttribute('aria-busy'); $('#chatInput').focus();
+  }
+}
+$('#chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage($('#chatInput').value); });
+const SUGGESTIONS = ['¿Qué tipos de biomasa maneja BioVolt?', '¿Cuántas plantas tiene BioVolt?', '¿Qué plantas están en mantenimiento?', '¿Qué información hay en el inventario?', '¿Qué puedo hacer en la mesa de ayuda?', '¿Cuál es el impacto ambiental?'];
+$('#chatChips').innerHTML = SUGGESTIONS.map(s => `<button class="chip" type="button">${esc(s)}</button>`).join('');
+$('#chatChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) sendMessage(b.textContent); });
+$('#clearChat').addEventListener('click', () => {
+  $$('.msg-row', chatLog).forEach(n => n.remove()); history.length = 0; $('#chatEmpty').hidden = false; $('#chatInput').focus(); toast('Conversación reiniciada');
+});
+
+/* =====================================================================
+   H. INICIO
+   ===================================================================== */
+/* Brillo líquido que sigue al cursor sobre tarjetas y botón primario */
+let spotRaf = 0;
+document.addEventListener('pointermove', e => {
+  const el = e.target.closest && e.target.closest('.card,.btn-primary');
+  if (!el || spotRaf) return;
+  spotRaf = requestAnimationFrame(() => {
+    spotRaf = 0; const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', (e.clientX - r.left) + 'px'); el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+}, { passive: true });
+
+$('#chatSend').innerHTML = icon('send', 20);
+hydrateIcons();
+applyTheme(document.documentElement.dataset.theme || 'dark', false);
+setMenu(false);
+bindStats(); renderHome(); renderOperations(); renderInventory(); renderPlants(); setDir('clients'); renderTickets(); renderAnalytics();
+route();
+</script>
+</body>
+</html>
