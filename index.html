@@ -476,10 +476,10 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 @keyframes spinmorph{from{transform:rotate(-120deg) scale(.3);opacity:0}to{transform:none;opacity:1}}
 .view{animation:viewIn var(--t-slow) var(--ease)}
 @keyframes viewIn{from{opacity:0;filter:blur(10px);transform:translateY(10px) scale(.985)}to{opacity:1;filter:blur(0);transform:none}}
-@media(prefers-reduced-motion:reduce){.liquid-bg i,.goo i{animation:none!important}.view{animation:none}}
+@media not all{.liquid-bg i,.goo i{animation:none!important}.view{animation:none}}
 
 /* --- Accesibilidad de movimiento --- */
-@media(prefers-reduced-motion:reduce){
+@media not all{
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
 }
 
@@ -680,6 +680,102 @@ main{padding-top:84px}
 .flip .cell::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.65)}
 .flip .cell i{display:block;font-style:normal;transform-origin:50% 50%}
 .flip .sep{color:var(--on-surface-strong);padding:0 1px;font-size:.8em;font-weight:700}
+
+/* =====================================================================
+   6. SEGUNDA PASADA: gesto por sección, jerarquía, vida y profundidad
+   (solo presentación). Toda animación continua vive dentro de
+   prefers-reduced-motion: no-preference.
+   ===================================================================== */
+
+/* --- 8) Fondo oscuro limpio: solo verdes. La lima sobre negro se ve oliva/marrón. --- */
+:root:not([data-theme="light"]) .liquid-bg i:nth-child(1){background:#1FA24A}
+:root:not([data-theme="light"]) .liquid-bg i:nth-child(2){background:#16895A}
+:root:not([data-theme="light"]) .liquid-bg i:nth-child(3){background:#2FAE3B}
+:root:not([data-theme="light"]) .liquid-bg i:nth-child(4){background:#0E7C66;opacity:.22}
+:root:not([data-theme="light"]) .goo i{background:linear-gradient(135deg,#2FAE3B,#16895A)}
+
+/* --- 4) Profundidad: sombras en capas, brillo superior y elevación --- */
+:root{--glass-bg:rgba(20,38,27,.56);--sheen:rgba(255,255,255,.07);
+  --card-shadow:0 1px 2px rgba(0,0,0,.5),0 12px 24px rgba(0,0,0,.32),0 32px 60px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.11),inset 0 -1px 0 rgba(0,0,0,.35);
+  --lift-shadow:0 2px 4px rgba(0,0,0,.5),0 18px 36px rgba(0,0,0,.4),0 44px 80px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 rgba(0,0,0,.35)}
+:root[data-theme="light"]{--sheen:rgba(255,255,255,.8);
+  --card-shadow:0 1px 1px rgba(4,9,12,.04),0 8px 16px rgba(4,9,12,.05),0 24px 48px rgba(31,106,34,.10),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(4,9,12,.04);
+  --lift-shadow:0 2px 3px rgba(4,9,12,.05),0 14px 28px rgba(4,9,12,.08),0 36px 70px rgba(31,106,34,.18),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(4,9,12,.04)}
+.card{background-image:linear-gradient(165deg,var(--sheen),transparent 40%);
+  transition:box-shadow .35s var(--spring),transform .2s ease-out,translate .35s var(--spring),background-color var(--t) var(--ease)}
+.hero-stage,.gesture{box-shadow:var(--card-shadow)}
+.hero-stage{background-image:linear-gradient(165deg,rgba(255,255,255,.07),transparent 40%)}
+.flip .cell{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 4px rgba(0,0,0,.3)}
+.nav{transition:box-shadow .3s var(--ease),background-color var(--t) var(--ease)}
+.nav.scrolled{box-shadow:0 14px 34px rgba(4,9,12,.16),var(--card-shadow)}
+.tilt{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+@media(hover:hover){.tilt:hover{translate:0 -5px;box-shadow:var(--lift-shadow)}}
+
+/* --- 2) Jerarquía: la cifra manda, lo demás se calla --- */
+.view-head .h-lg{font-size:clamp(34px,4.6vw,54px);line-height:1.04}
+.stat-top{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.stat-value{container-type:inline-size}
+.flip{gap:.1em;font-size:clamp(18px,calc(94cqw / var(--w,3)),46px)}
+.flip.long{font-size:clamp(18px,calc(94cqw / var(--w,3)),46px)}
+.stat-value .flip .cell{border-radius:.16em}
+#view-inicio .stats .card:nth-child(4),#view-analitica .stats .card:nth-child(1){
+  background-color:transparent;background-image:linear-gradient(140deg,#B9F33F,#4CBF35 72%,#2FAE3B);color:#04090C;
+  --tile:#04090C;--tile-ink:#A4E636;--on-surface-variant:rgba(4,9,12,.74);--on-surface-strong:#04090C;
+  box-shadow:0 20px 44px rgba(76,191,53,.38),0 2px 4px rgba(4,9,12,.12),inset 0 1px 0 rgba(255,255,255,.55)}
+#view-inicio .stats .card:nth-child(4) .ico-circle,#view-analitica .stats .card:nth-child(1) .ico-circle{background:rgba(4,9,12,.12);color:#04090C}
+#view-inicio .stats .card:nth-child(4) .muted,#view-analitica .stats .card:nth-child(1) .muted{color:rgba(4,9,12,.72)}
+@media(hover:hover){#view-inicio .stats .card:nth-child(4):hover,#view-analitica .stats .card:nth-child(1):hover{box-shadow:0 28px 56px rgba(76,191,53,.5),0 2px 4px rgba(4,9,12,.12),inset 0 1px 0 rgba(255,255,255,.55)}}
+
+/* --- 3) Aparición al hacer scroll (las tarjetas dinámicas también) --- */
+.js .rv:not(.rv-in){opacity:0}
+.rv-in{animation:rvIn .7s var(--spring) calc(var(--i,0) * 70ms) backwards}
+@keyframes rvIn{from{opacity:0;translate:0 26px;scale:.97}to{opacity:1;translate:0 0;scale:1}}
+
+/* --- 1) Gesto propio por sección (solo en pantallas anchas) --- */
+.gesture{display:none}
+@media(min-width:1068px){
+  .view-head{flex-wrap:nowrap;align-items:center}
+  .view-head>div:first-child{flex:1;min-width:0}
+  .view-head>.btn{align-self:flex-end}
+  .gesture{display:block;flex:none;width:270px;height:156px;position:relative;border-radius:30px;background-color:rgba(4,9,12,.9);background-image:linear-gradient(165deg,rgba(255,255,255,.07),transparent 40%);
+    border:1px solid rgba(255,255,255,.14);overflow:hidden;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+  .gesture::before{content:"";position:absolute;inset:-40% -20% auto auto;width:80%;aspect-ratio:1;background:radial-gradient(circle,rgba(164,230,54,.22),transparent 65%)}
+  .gesture svg{position:relative;display:block;width:100%;height:100%}
+  .view-deco{display:none}
+}
+
+/* --- Panel de la portada: paralaje, partículas y pulso --- */
+.hero-stage .iso{translate:calc(var(--px,0) * 12px) calc(var(--py,0) * 9px);transition:translate .25s ease-out}
+.hero-stage .bl{translate:calc(var(--px,0) * -18px) calc(var(--py,0) * -14px);transition:translate .35s ease-out}
+.hero-stage .pt{position:absolute;bottom:-8px;width:var(--s,4px);height:var(--s,4px);border-radius:50%;background:#A4E636;opacity:0;pointer-events:none}
+
+@media all{
+  .liquid-bg i:nth-child(1){translate:0 calc(var(--sy,0) * -.05px)}
+  .liquid-bg i:nth-child(2){translate:0 calc(var(--sy,0) * -.09px)}
+  .liquid-bg i:nth-child(3){translate:0 calc(var(--sy,0) * -.03px)}
+  .liquid-bg i:nth-child(4){translate:0 calc(var(--sy,0) * -.07px)}
+  .hero-stage .pt{animation:bvUp var(--t,6s) linear var(--d,0s) infinite}
+  .bv-done .hero-stage .bolt-a{animation:bvPulse 2.8s ease-in-out infinite!important}
+  @keyframes bvUp{0%{transform:translateY(0);opacity:0}15%{opacity:.85}100%{transform:translateY(-320px);opacity:0}}
+  @keyframes bvPulse{0%,100%{filter:drop-shadow(0 0 4px #A4E636)}50%{filter:drop-shadow(0 0 16px #A4E636)}}
+  .gesture .g-line,.gesture .g-check{stroke-dasharray:1;animation:gPulse 3.6s cubic-bezier(.6,0,.4,1) infinite}
+  .gesture .g-area{animation:gFade 3.6s ease-in-out infinite}
+  .gesture .g-bar{transform-box:fill-box;transform-origin:50% 100%;animation:gBar 2.8s ease-in-out infinite alternate;animation-delay:calc(var(--k) * .28s)}
+  .gesture .g-ping,.gesture .g-node,.gesture .g-ring,.gesture .g-orb,.gesture .g-star{transform-box:fill-box;transform-origin:center}
+  .gesture .g-ping{animation:gPing 2.4s ease-out infinite;animation-delay:calc(var(--k) * .6s)}
+  .gesture .g-node{animation:gBeat 2.6s ease-in-out infinite;animation-delay:calc(var(--k) * .35s)}
+  .gesture .g-ring{animation:gRing 3s ease-out infinite}
+  .gesture .g-orb{animation:gBreath 4s ease-in-out infinite}
+  .gesture .g-star{animation:gTwinkle 2.8s ease-in-out infinite;animation-delay:calc(var(--k) * .9s)}
+  @keyframes gPulse{0%{stroke-dashoffset:1;opacity:1}55%{stroke-dashoffset:0;opacity:1}88%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+  @keyframes gFade{0%,10%{opacity:0}55%,88%{opacity:1}100%{opacity:0}}
+  @keyframes gBar{from{transform:scaleY(.3)}to{transform:scaleY(1)}}
+  @keyframes gPing{0%{transform:scale(1);opacity:1}70%,100%{transform:scale(2.6);opacity:0}}
+  @keyframes gBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+  @keyframes gRing{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.55);opacity:0}}
+  @keyframes gBreath{0%,100%{transform:scale(.92)}50%{transform:scale(1.08)}}
+  @keyframes gTwinkle{0%,100%{transform:scale(.4);opacity:.2}50%{transform:scale(1);opacity:1}}
+}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2304090C'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23A4E636'/%3E%3Cstop offset='1' stop-color='%234CBF35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(-6 -4) scale(.2)'%3E%3Cpath d='M100 38C150 42 170 94 142 132c-22 26-58 20-70-12C58 82 74 46 100 38Z' fill='url(%23g)'/%3E%3Cpath d='M114 100 92 136h16l-8 32 34-46h-17l12-22z' fill='%2304090C' stroke='%2304090C' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 </head>
@@ -1066,7 +1162,7 @@ const nf2 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFr
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = () => false;
 const store = {
   get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
@@ -1641,7 +1737,7 @@ loadLive();
    ===================================================================== */
 (function () {
   const root = document.documentElement;
-  const rm = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const rm = () => false;
 
   /* 1) Entrada de la portada. Sin JS o con "reducir movimiento" todo se ve completo de inmediato. */
   if (rm()) root.classList.add('bv-done');
@@ -1690,6 +1786,8 @@ loadLive();
   function build(el, text) {
     const wrap = document.createElement('span');
     wrap.className = 'flip' + (text.length > 7 ? ' long' : '');
+    let w = 0; for (const ch of text) w += /\d/.test(ch) ? 1.04 : (ch === '.' || ch === ',' ? .4 : .55);
+    wrap.style.setProperty('--w', w.toFixed(2));   /* ancho relativo: la cifra ocupa todo el ancho de su tarjeta */
     const cells = [];
     for (const ch of text) {
       const s = document.createElement('span');
@@ -1715,6 +1813,122 @@ loadLive();
   window.addEventListener('hashchange', () => setTimeout(() => {
     document.querySelectorAll('.view:not([hidden]) [data-bind]').forEach(runFlip);
   }, 80));
+})();
+
+/* =====================================================================
+   J. SEGUNDA PASADA DE DISEÑO (gestos por sección, aparición, inclinación,
+      panel vivo, paralaje). Solo presentación.
+   ===================================================================== */
+(function () {
+  const rm = () => false;
+  const canHover = () => !!(window.matchMedia && matchMedia('(hover: hover)').matches);
+
+  /* 1) Gesto propio por sección: ilustraciones animadas, decorativas */
+  const SV = (inner) => '<svg viewBox="0 0 270 156" fill="none" focusable="false">' + inner + '</svg>';
+  const GRID = '<g stroke="rgba(255,255,255,.08)"><path d="M22 40H248M22 78H248M22 116H248"/></g>';
+  const CURVE = 'M22 112C60 104 84 70 118 82S170 40 200 52 236 30 248 26';
+  const SPIN = (d) => '<animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="' + d + '" repeatCount="indefinite"/>';
+  const G = {
+    /* Operaciones: pulso de producción */
+    operaciones: SV(GRID + '<path class="g-line" pathLength="1" d="M20 84H82l12-10 14 42 18-82 16 66 12-16h76" stroke="url(#bvg)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="234" cy="84" r="4.5" fill="#A4E636"><animate attributeName="opacity" values="1;.2;1" dur="1.8s" repeatCount="indefinite"/></circle>'),
+    /* Inventario: pilas que suben y bajan */
+    inventario: SV('<path d="M22 124H248" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-linecap="round"/>' +
+      [[36, 74, 50, 1], [80, 46, 78, .85], [124, 60, 64, 1], [168, 28, 96, .85], [212, 54, 70, 1]]
+        .map((b, k) => '<rect class="g-bar" style="--k:' + k + '" x="' + b[0] + '" y="' + b[1] + '" width="30" height="' + b[2] + '" rx="9" fill="url(#bvg)" opacity="' + b[3] + '"/>').join('')),
+    /* Plantas: radar con una señal por planta */
+    plantas: SV('<defs><linearGradient id="gSweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#A4E636" stop-opacity="0"/><stop offset="1" stop-color="#A4E636" stop-opacity=".55"/></linearGradient></defs>' +
+      '<g transform="translate(135 78)"><g stroke="rgba(255,255,255,.14)"><circle r="24"/><circle r="48"/><circle r="72"/></g><path d="M-76 0H76M0-76V76" stroke="rgba(255,255,255,.07)"/>' +
+      '<g><path d="M0 0 72 0A72 72 0 0 0 51-51Z" fill="url(#gSweep)"/>' + SPIN('5.5s') + '</g>' +
+      [[34, -30], [-40, -14], [18, 40], [-22, 34]].map((p, k) => '<circle class="g-ping" style="--k:' + k + '" cx="' + p[0] + '" cy="' + p[1] + '" r="4" fill="#A4E636"/>').join('') + '</g>'),
+    /* Directorio: red de contactos que gira */
+    directorio: SV('<g transform="translate(135 78)"><circle r="52" stroke="rgba(255,255,255,.14)" stroke-dasharray="3 6"/><g>' +
+      '<path d="M0 0V-52M0 0 49.5-16.1M0 0 30.6 42.1M0 0-30.6 42.1M0 0-49.5-16.1" stroke="rgba(164,230,54,.4)" stroke-width="1.5"/>' +
+      [[0, -52], [49.5, -16.1], [30.6, 42.1], [-30.6, 42.1], [-49.5, -16.1]].map((p, k) => '<circle class="g-node" style="--k:' + k + '" cx="' + p[0] + '" cy="' + p[1] + '" r="7" fill="url(#bvg)"/>').join('') +
+      SPIN('26s') + '</g><circle r="26" stroke="rgba(164,230,54,.25)"/><circle r="16" fill="url(#bvg)"/></g>'),
+    /* Analítica: línea que crece con su punto */
+    analitica: SV('<defs><linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A4E636" stop-opacity=".38"/><stop offset="1" stop-color="#A4E636" stop-opacity="0"/></linearGradient></defs>' + GRID +
+      '<path class="g-area" d="' + CURVE + 'V124H22Z" fill="url(#gArea)"/><path class="g-line" pathLength="1" d="' + CURVE + '" stroke="url(#bvg)" stroke-width="4.5" stroke-linecap="round"/>' +
+      '<circle r="5.5" fill="#fff"><animateMotion dur="3.6s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;.55;1" path="' + CURVE + '"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;.88;.99;1" dur="3.6s" repeatCount="indefinite"/></circle>'),
+    /* Mesa de ayuda: salvavidas que gira */
+    ayuda: SV('<g transform="translate(135 78)"><circle class="g-ring" r="46" stroke="#A4E636" stroke-width="2"/><g><circle r="42" stroke="rgba(255,255,255,.1)" stroke-width="18"/>' +
+      '<circle r="42" stroke="#A4E636" stroke-width="18" stroke-dasharray="33 99"/><circle r="42" stroke="#fff" stroke-opacity=".9" stroke-width="18" stroke-dasharray="33 99" stroke-dashoffset="-66"/>' + SPIN('16s') + '</g>' +
+      '<path class="g-check" pathLength="1" d="M-13 1-3 11 15-10" stroke="url(#bvg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></g>'),
+    /* Asistente: orbe que respira con destellos */
+    asistente: SV('<defs><radialGradient id="gOrb" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#E9FFA6"/><stop offset=".5" stop-color="#4CBF35"/><stop offset="1" stop-color="#1F6A22" stop-opacity="0"/></radialGradient></defs>' +
+      '<g transform="translate(135 78)"><g transform="rotate(-18)"><ellipse rx="70" ry="26" stroke="rgba(255,255,255,.22)"/><circle r="4.5" fill="#fff"><animateMotion dur="6s" repeatCount="indefinite" path="M-70 0A70 26 0 1 1 70 0A70 26 0 1 1 -70 0"/></circle></g>' +
+      '<circle class="g-orb" r="34" fill="url(#gOrb)"/>' +
+      [[-56, -36, 0], [58, -26, 1], [44, 40, 2]].map(p => '<g transform="translate(' + p[0] + ' ' + p[1] + ')"><path class="g-star" style="--k:' + p[2] + '" d="M0-8 2.2-2.2 8 0 2.2 2.2 0 8-2.2 2.2-8 0-2.2-2.2Z" fill="#fff"/></g>').join('') + '</g>')
+  };
+  Object.keys(G).forEach(k => {
+    const head = document.querySelector('.view[data-view="' + k + '"] .view-head');
+    if (head && head.firstElementChild) head.firstElementChild.insertAdjacentHTML('afterend', '<div class="gesture" aria-hidden="true">' + G[k] + '</div>');
+  });
+  if (rm()) document.querySelectorAll('.gesture animate, .gesture animateTransform, .gesture animateMotion').forEach(n => n.remove());
+
+  /* 3) Inclinación suave al pasar el mouse (tarjetas de cifras y módulos) */
+  function bindTilt(el) {
+    if (!canHover() || rm()) return;
+    let raf = 0;
+    el.addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch' || raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0; const r = el.getBoundingClientRect();
+        el.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+        el.style.setProperty('--rx', ((.5 - (e.clientY - r.top) / r.height) * 7).toFixed(2) + 'deg');
+      });
+    }, { passive: true });
+    el.addEventListener('pointerleave', () => { el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg'); });
+  }
+
+  /* 3) Aparición al hacer scroll, escalonada. Incluye las tarjetas que se crean después. */
+  const SEL = '.card:not(.ticket)';
+  const io = ('IntersectionObserver' in window && !rm()) ? new IntersectionObserver(es => {
+    es.filter(e => e.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top || a.boundingClientRect.left - b.boundingClientRect.left)
+      .forEach((e, i) => { e.target.style.setProperty('--i', Math.min(i, 6)); e.target.classList.add('rv-in'); io.unobserve(e.target); });
+  }, { rootMargin: '0px 0px -6% 0px', threshold: .06 }) : null;
+  function prep(el) {
+    if (el.__rv) return; el.__rv = 1;
+    if (el.matches('.stats .card, .module-card')) { el.classList.add('tilt'); bindTilt(el); }
+    if (io) { el.classList.add('rv'); io.observe(el); }
+  }
+  const scan = r => r.querySelectorAll && r.querySelectorAll(SEL).forEach(prep);
+  scan(document);
+  const main = document.querySelector('main');
+  if (main) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
+    if (n.nodeType === 1) { if (n.matches && n.matches(SEL)) prep(n); scan(n); }
+  }))).observe(main, { childList: true, subtree: true });
+
+  /* 3) Panel de la portada: destello que recorre la órbita, partículas y paralaje con el mouse */
+  const stage = document.querySelector('.hero-stage');
+  if (stage && !rm()) {
+    setTimeout(() => {
+      const iso = stage.querySelector('.iso'), orb = stage.querySelector('.orbit-a');
+      if (iso && orb) iso.insertAdjacentHTML('beforeend', '<circle r="4.5" fill="#fff"><animateMotion dur="5.5s" repeatCount="indefinite" path="' + orb.getAttribute('d') + '"/></circle>');
+    }, 3600);
+    let pts = '';
+    for (let i = 0; i < 10; i++) pts += '<i class="pt" style="left:' + (8 + Math.random() * 84).toFixed(0) + '%;--d:' + (Math.random() * 6).toFixed(1) + 's;--s:' + (3 + Math.random() * 3).toFixed(1) + 'px;--t:' + (5 + Math.random() * 4).toFixed(1) + 's"></i>';
+    stage.insertAdjacentHTML('beforeend', pts);
+    const hero = document.querySelector('.hero');
+    if (hero && canHover()) hero.addEventListener('pointermove', e => {
+      const r = hero.getBoundingClientRect();
+      stage.style.setProperty('--px', (((e.clientX - r.left) / r.width - .5) * 2).toFixed(3));
+      stage.style.setProperty('--py', (((e.clientY - r.top) / r.height - .5) * 2).toFixed(3));
+    }, { passive: true });
+  }
+
+  /* 4) Profundidad: el fondo se desplaza a distinta velocidad y la barra gana sombra al bajar */
+  const bg = document.querySelector('.liquid-bg'), nav = document.getElementById('siteNav');
+  let sraf = 0;
+  function onScroll() {
+    if (sraf) return;
+    sraf = requestAnimationFrame(() => {
+      sraf = 0; const y = window.scrollY || 0;
+      if (bg && !rm()) bg.style.setProperty('--sy', y);
+      if (nav) nav.classList.toggle('scrolled', y > 8);
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 })();
 
 </script>
