@@ -11,7 +11,7 @@
 import mysql from "mysql2/promise";
 
 // Modelo del agente: se puede cambiar en Netlify con la variable GEMINI_MODEL_AGENTE (sin tocar el código).
-const MODEL = process.env.GEMINI_MODEL_AGENTE || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL_AGENTE || "gemini-3.5-flash-lite";
 // "thinkingLevel" solo existe en los modelos Gemini 3; los 2.5 lo rechazan.
 const think = (m) => (/gemini-3/.test(m) ? { thinkingConfig: { thinkingLevel: "low" } } : {});
 const CATS = ["Sistemas", "Inventario", "Producción", "Logística", "Administración", "Otro"];
