@@ -16,7 +16,10 @@ const PRIOS = ["Baja", "Media", "Alta", "Crítica"];
 const MAX_STEPS = 3;
 // Modelo para la búsqueda en internet (Grounding con Google Search). Si el modelo principal no la admite, define GEMINI_SEARCH_MODEL en Netlify (p. ej. gemini-2.5-flash).
 const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || MODEL;
-const BUDGET_MS = 8200; // Netlify corta las funciones a los ~10 s: se responde antes de eso
+// Netlify corta las funciones a los ~10 s. Este reloj cuenta DESDE QUE LLEGA la petición (base de datos incluida):
+// hasta DEADLINE_MS se responde SIEMPRE, y RESERVE_MS se deja para guardar la respuesta en la base.
+const DEADLINE_MS = 8300;
+const RESERVE_MS = 1300;
 
 export const config = { path: "/api/agente" };
 
@@ -167,7 +170,20 @@ async function gemini(body, key, ms, model = MODEL) {
   return j;
 }
 
+const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(msg), { status: 504 })), ms))]);
+const FALLBACK = (motivo) => ({ respuesta: "No alcancé a completar el análisis a tiempo. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true, motivo });
+
+// Convierte lo que devolvió la búsqueda en la respuesta final (Resuelta solo si hay fuentes verificables)
+const finalFromSearch = (r, category, priority) =>
+  r.error ? { respuesta: "No pude buscar información para esta solicitud. Una persona debe revisarla.", estado: "En proceso", escalar: true, motivo: r.error }
+  : r.verificado_con_fuentes ? { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "Resuelto", escalar: false }
+  : { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "En proceso", escalar: true, motivo: "La información de internet no trae fuentes verificables." };
+const searchFailed = (e) => ({ respuesta: "No pude buscar información en internet ahora. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true,
+  motivo: e?.status === 429 ? "Límite de uso de la IA alcanzado; reintenta en un minuto." : "La búsqueda en internet no respondió a tiempo." });
+
 export default async (request, context) => {
+  const T0 = Date.now();
+  const left = () => DEADLINE_MS - RESERVE_MS - (Date.now() - T0); // tiempo que queda para pensar/consultar
   const headers = { "Content-Type": "application/json; charset=utf-8" };
   const out = (status, data) => new Response(JSON.stringify(data), { status, headers });
   if (request.method !== "POST") return out(405, { error: "Método no permitido." });
@@ -179,43 +195,46 @@ export default async (request, context) => {
     const b = await request.json();
     const id = parseInt(String(b.id || "").replace(/\D/g, ""), 10);
     if (!id) return out(400, { error: "Falta la solicitud." });
-    const row = (await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]))[0];
+    const row = (await withTimeout(q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]), 4000, "La base de datos tardó demasiado en responder."))[0];
     if (!row) return out(404, { error: "La solicitud no existe." });
     const subject = row.asunto, description = row.descripcion, category = row.categoria, priority = row.prioridad;
+    const used = [], sources = [], ctx = { key, sources, left };
 
-    const contents = [{ role: "user", parts: [{ text: `SOLICITUD\nAsunto: ${subject}\nDescripción: ${description}\nCategoría elegida: ${category}\nPrioridad elegida: ${priority}` }] }];
-    const used = []; let final = null; const t0 = Date.now(); let timedOut = false;
-    const sources = [], ctx = { key, sources, left: () => BUDGET_MS - (Date.now() - t0) };
-    try {
-      for (let step = 0; step <= MAX_STEPS && !final; step++) {
-        const left = BUDGET_MS - (Date.now() - t0);
-        if (left < 1500) { timedOut = true; break; }
-        const last = step === MAX_STEPS || Date.now() - t0 > 4500; // sin tiempo: obliga a responder ya
+    // Todo el trabajo "pesado" va aquí; abajo se compite contra un reloj duro para que SIEMPRE haya respuesta.
+    const compute = async () => {
+      // Modo búsqueda (2.º paso, lo pide la página): la función entera se dedica a buscar en internet
+      if (b.web === true) {
+        try {
+          const r = await TOOLS.buscar_en_internet.run({ consulta: String(b.consulta || subject).slice(0, 200) }, { ...ctx, reserve: 400, cap: 7000 });
+          used.push(TOOLS.buscar_en_internet.label);
+          return { final: finalFromSearch(r, category, priority) };
+        } catch (e) { console.error("Búsqueda en internet falló:", e?.message || e); return { final: searchFailed(e) }; }
+      }
+      const contents = [{ role: "user", parts: [{ text: `SOLICITUD\nAsunto: ${subject}\nDescripción: ${description}\nCategoría elegida: ${category}\nPrioridad elegida: ${priority}` }] }];
+      for (let step = 0; step <= MAX_STEPS; step++) {
+        if (left() < 1500) return { final: FALLBACK("El agente tardó demasiado."), timedOut: true };
+        const last = step === MAX_STEPS || Date.now() - T0 > 4500; // sin tiempo: obliga a responder ya
         const result = await gemini({
           systemInstruction: { parts: [{ text: SYSTEM }] }, contents,
           tools: [{ functionDeclarations: [...Object.values(TOOLS).map((t) => t.decl), FINAL] }],
           toolConfig: { functionCallingConfig: { mode: "ANY", ...(last ? { allowedFunctionNames: [FINAL.name] } : {}) } },
           generationConfig: { temperature: 0.3, maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: "low" } },
-        }, key, left);
+        }, key, left());
         const content = result?.candidates?.[0]?.content;
         const calls = (content?.parts || []).filter((p) => p.functionCall);
-        if (!calls.length) { final = { respuesta: (content?.parts || []).map((p) => p.text || "").join(""), estado: "En proceso", escalar: true, motivo: "El agente no pudo completar el análisis." }; break; }
+        if (!calls.length) return { final: { respuesta: (content?.parts || []).map((p) => p.text || "").join(""), estado: "En proceso", escalar: true, motivo: "El agente no pudo completar el análisis." } };
         contents.push(content); // se devuelve tal cual (incluye las firmas de pensamiento de Gemini 3)
         const fin = calls.find((c) => c.functionCall.name === FINAL.name);
-        if (fin) { final = fin.functionCall.args || {}; break; }
-        // Atajo: si solo se pidió buscar en internet, esa respuesta ya es la final (ahorra una llamada a Gemini: tiempo y cuota por minuto)
+        if (fin) return { final: fin.functionCall.args || {} };
         if (calls.length === 1 && calls[0].functionCall.name === "buscar_en_internet") {
+          const args = calls[0].functionCall.args || {};
+          // Si la página sabe hacerlo en 2 pasos y no alcanza el tiempo, la búsqueda se hace en una 2.ª llamada con su propio reloj
+          if (b.dosPasos === true && left() < 6000) return { web: String(args.consulta || subject).slice(0, 200) };
           try {
-            const r = await TOOLS.buscar_en_internet.run(calls[0].functionCall.args || {}, { ...ctx, reserve: 600, cap: 7000 });
+            const r = await TOOLS.buscar_en_internet.run(args, { ...ctx, reserve: 600, cap: 7000 });
             used.push(TOOLS.buscar_en_internet.label);
-            final = r.error ? { respuesta: "No pude buscar información para esta solicitud. Una persona debe revisarla.", estado: "En proceso", escalar: true, motivo: r.error }
-              : r.verificado_con_fuentes ? { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "Resuelto", escalar: false }
-              : { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "En proceso", escalar: true, motivo: "La información de internet no trae fuentes verificables." };
-          } catch (e) {
-            console.error("Búsqueda en internet falló:", e?.message || e);
-            final = { respuesta: "No pude buscar información en internet ahora. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true, motivo: e?.status === 429 ? "Límite de uso de la IA alcanzado; reintenta en un minuto." : "La búsqueda en internet no respondió a tiempo." };
-          }
-          break;
+            return { final: finalFromSearch(r, category, priority) };
+          } catch (e) { console.error("Búsqueda en internet falló:", e?.message || e); return { final: searchFailed(e) }; }
         }
         const responses = await Promise.all(calls.map(async ({ functionCall: fc }) => {
           const tool = TOOLS[fc.name]; let res;
@@ -228,24 +247,32 @@ export default async (request, context) => {
         }));
         contents.push({ role: "user", parts: responses });
       }
-    } catch (e) {
-      if (e.name === "TimeoutError" || e.name === "AbortError") timedOut = true; else throw e;
-    }
-    if (!final && timedOut) final = { respuesta: "No alcancé a completar el análisis a tiempo. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true, motivo: "El agente tardó demasiado." };
+      return { final: FALLBACK("El agente tardó demasiado."), timedOut: true };
+    };
 
-    console.log(`[agente] BV-${id} ${Date.now() - t0} ms · herramientas: ${used.join(", ") || "ninguna"}${timedOut ? " · TIEMPO AGOTADO" : ""}`);
-    let respuesta = plain(final?.respuesta);
-    if (!respuesta) return out(502, { error: "El agente no devolvió una respuesta." });
+    // Reloj duro: pase lo que pase (Gemini colgado, base lenta...), a los DEADLINE-RESERVE ms se responde y se escala.
+    let timer;
+    const guard = new Promise((res) => { timer = setTimeout(() => res({ final: FALLBACK("El agente tardó demasiado."), timedOut: true }), Math.max(500, left())); });
+    const outcome = await Promise.race([compute().catch((e) => ({ final: FALLBACK(e?.status === 429 ? "Límite de uso de la IA alcanzado; reintenta en un minuto." : "El agente tuvo un problema técnico."), error: e })), guard]);
+    clearTimeout(timer);
+    if (outcome.error) console.error("Error del agente:", outcome.error?.message || outcome.error);
+    if (outcome.web) return out(200, { buscar_web: true, consulta: outcome.web, ticket: fmt(row) });
+
+    let final = outcome.final || {};
+    let respuesta = plain(final.respuesta);
+    if (!respuesta) { final = FALLBACK("El agente no devolvió una respuesta."); respuesta = plain(final.respuesta); } // nunca se queda sin respuesta
     // Aviso fijo (no depende del modelo) cuando la respuesta se apoyó en internet
     if (used.includes(TOOLS.buscar_en_internet.label) && sources.length) respuesta = respuesta.slice(0, 950).trim() + " (Información orientativa tomada de internet. Fuentes: " + sources.join(", ") + ".)";
     const cat = CATS.includes(final.categoria) ? final.categoria : category, pri = PRIOS.includes(final.prioridad) ? final.prioridad : priority;
     const escalar = final.escalar === true, estado = final.estado === "Resuelto" && !escalar ? "Resuelto" : "En proceso";
-    await q(`UPDATE solicitudes_ayuda SET categoria = ?, prioridad = ?, estado = ?, ia_respuesta = ?, ia_herramientas = ?, ia_escalar = ?, ia_motivo = ?, ia_en = NOW() WHERE id = ?`,
-      [cat, pri, estado, respuesta, used.join("|"), escalar ? 1 : 0, plain(final.motivo).slice(0, 300), id]);
-    const upd = (await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]))[0];
-    return out(200, { ticket: fmt(upd) });
+    const motivo = plain(final.motivo).slice(0, 300), herr = used.join("|");
+    console.log(`[agente] BV-${id} ${Date.now() - T0} ms hasta responder · herramientas: ${used.join(", ") || "ninguna"}${outcome.timedOut ? " · TIEMPO AGOTADO" : ""}${b.web ? " · modo búsqueda" : ""}`);
+    await withTimeout(q(`UPDATE solicitudes_ayuda SET categoria = ?, prioridad = ?, estado = ?, ia_respuesta = ?, ia_herramientas = ?, ia_escalar = ?, ia_motivo = ?, ia_en = NOW() WHERE id = ?`,
+      [cat, pri, estado, respuesta, herr, escalar ? 1 : 0, motivo, id]), 2500, "No se pudo guardar la respuesta.");
+    // La respuesta se arma aquí (sin volver a leer la base): una consulta menos = menos tiempo
+    return out(200, { ticket: fmt({ ...row, categoria: cat, prioridad: pri, estado, ia_respuesta: respuesta, ia_herramientas: herr, ia_escalar: escalar ? 1 : 0, ia_motivo: motivo, ia_ts: Date.now() }) });
   } catch (error) {
     console.error("Error del agente:", error?.message || error);
-    return out(error.status === 429 ? 429 : 502, { error: error.message || "Error del agente." });
+    return out(error.status === 429 ? 429 : error.status === 504 ? 504 : 502, { error: error.message || "Error del agente." });
   }
 };
