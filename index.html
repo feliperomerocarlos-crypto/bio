@@ -994,7 +994,7 @@ main{padding-top:84px}
       <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
       <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
     </div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Un agente de IA revisa cada solicitud: consulta los datos de BioVolt y responde en pantalla. Las solicitudes se guardan solo en este navegador.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en la base de datos: se ven desde cualquier computador. Un agente de IA revisa cada una, consulta los datos de BioVolt y responde en pantalla.</span></div>
     <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:var(--lg)" id="ticketStats"></div>
     <div class="help-layout">
       <section aria-label="Listado de solicitudes">
@@ -1023,7 +1023,7 @@ main{padding-top:84px}
           <div class="field"><label for="tDescription">Descripción</label><textarea class="textarea" id="tDescription" name="description" maxlength="500" required aria-describedby="tDescription-err tDescCount" placeholder="Cuéntanos qué ocurrió…"></textarea><p class="err" id="tDescription-err" hidden></p><span class="small counter" id="tDescCount">0/500</span></div>
           <button class="btn btn-primary btn-block" type="submit">Enviar solicitud</button>
         </form>
-        <button class="btn btn-ghost btn-sm mt" type="button" id="restoreDemo">Restaurar datos de demostración</button>
+        <p class="small muted mt">Las solicitudes se guardan en la base de datos y se ven desde cualquier computador. Tu correo se guarda, pero no se muestra a otras personas.</p>
       </aside>
     </div>
   </div>
@@ -1339,7 +1339,7 @@ const FAQ = [
   ['¿Qué es BioVolt AI?','Es un prototipo de plataforma para gestionar la operación de BioVolt: plantas, biomasa, inventario, producción, directorio, soporte y un asistente conversacional.'],
   ['¿De dónde salen los datos?','De la base de datos del proyecto, que se consulta en modo de solo lectura. Por privacidad no se publican datos personales de clientes ni empleados.'],
   ['¿Cómo registro una solicitud de soporte?','Entra a Mesa de ayuda, completa el formulario (nombre, correo, asunto, categoría, prioridad y descripción) y envíalo. Podrás verla en el listado, abrir su detalle y cambiar su estado.'],
-  ['¿Dónde se guardan las solicitudes?','En el almacenamiento local de este navegador (localStorage). Si borras los datos del sitio o abres la página en otro navegador, no aparecerán. Una fase posterior las guardará en MySQL.'],
+  ['¿Dónde se guardan las solicitudes?','En la base de datos del proyecto, así que se ven desde cualquier computador. Tu correo se guarda pero no se muestra a otras personas. Cambiar el estado a mano o eliminar una solicitud requiere la clave de docente.'],
   ['¿El asistente usa inteligencia artificial real?','Sí. Las preguntas se envían a un modelo de IA generativa a través de una función segura del servidor. Si el servicio no está disponible, responde con una base de conocimiento local.'],
   ['¿Puedo cambiar entre modo claro y oscuro?','Sí. Usa el botón de sol o luna en la barra superior. La página sigue por defecto la preferencia de tu sistema y recuerda tu elección.']
 ];
@@ -1423,7 +1423,7 @@ function renderAnalytics(){
     ['Operación', 'Se identifican ' + S.plants + ' plantas; ' + DB.plants.filter(p => p.estado !== 'Operativa').length + ' figuran en mantenimiento (' + DB.plants.filter(p => p.estado !== 'Operativa').map(p => p.nombre.replace('Planta ', '')).join(' y ') + '). Revísalas antes de programar producción.'],
     ['Impacto ambiental', 'Los registros suman ' + nf.format(S.co2) + ' toneladas de CO₂ evitado y ' + nf.format(S.waste) + ' toneladas de residuos procesadas.'],
     ['Calidad de datos', 'La tabla de producción declara unidades en cada registro (kWh y MWh). Conviene normalizarlas antes de comparar o proyectar volúmenes.'],
-    ['Mesa de ayuda', 'Hay ' + open + ' solicitud' + (open === 1 ? '' : 'es') + ' sin resolver de ' + tickets.length + ' registradas en este navegador. El agente IA respondió ' + tickets.filter(x => x.ai && x.ai.respuesta).length + '.']
+    ['Mesa de ayuda', 'Hay ' + open + ' solicitud' + (open === 1 ? '' : 'es') + ' sin resolver de ' + tickets.length + ' registradas. El agente IA respondió ' + tickets.filter(x => x.ai && x.ai.respuesta).length + '.']
   ];
   $('#insightList').innerHTML = items.map(x => `<div class="metric-tile"><p class="eyebrow">${esc(x[0])}</p><p style="font-size:15px;margin-top:4px">${esc(x[1])}</p></div>`).join('');
   $('#capacityList').innerHTML = DB.plants.map(p =>
@@ -1448,8 +1448,8 @@ function loadTickets(){
   try { const a = JSON.parse(store.get(TKEY)); if (Array.isArray(a)) return a; } catch (e) {}
   return seedTickets();
 }
-let tickets = loadTickets();
-const saveTickets = () => store.set(TKEY, JSON.stringify(tickets));
+let tickets = [];                 // se cargan desde la base de datos (GET /api/tickets)
+const saveTickets = () => {};     // ya no se guarda en el navegador
 const tState = { q:'', status:'Todos', prio:'' };
 
 function renderTicketStats(){
@@ -1525,43 +1525,64 @@ function aiBlock(t){
     <div style="margin-top:10px">${ask('Volver a consultar')}</div>`;
   return `<div><p class="field-label" style="margin-bottom:6px">Respuesta del agente IA</p>${body}</div>`;
 }
-async function askAgent(t){
-  t.ai = { pending: true }; saveTickets(); renderTickets(); if (currentId === t.id) renderDialog(t);
+/* --- Solicitudes en la base de datos (/api/tickets) --- */
+const TAPI = '/api/tickets';
+async function loadRemote(silent){
   try {
-    const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject: t.subject, description: t.description, category: t.category, priority: t.priority }) });
+    const res = await fetch(TAPI, { headers: { Accept: 'application/json' } });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    t.ai = Object.assign({ at: Date.now() }, d);
-    if (CATS.includes(d.categoria)) t.category = d.categoria;
-    if (['Baja', 'Media', 'Alta', 'Crítica'].includes(d.prioridad)) t.priority = d.prioridad;
-    t.status = d.estado === 'Resuelto' && !d.escalar ? 'Resuelto' : 'En proceso';
+    const pend = new Set(tickets.filter(x => x.ai && x.ai.pending).map(x => x.id));
+    tickets = d.tickets.map(x => pend.has(x.id) ? Object.assign(x, { ai: { pending: true } }) : x);
+  } catch (err) { console.error('No se pudieron cargar las solicitudes:', err); if (!silent) toast('No se pudieron cargar las solicitudes'); }
+  renderTickets(); renderAnalytics();
+}
+let adminPinCache = null;   // la clave de docente solo se guarda en memoria
+async function adminCall(method, t, body){
+  if (!adminPinCache) adminPinCache = prompt('Clave de docente para esta acción:');
+  if (!adminPinCache) return false;
+  try {
+    const res = await fetch(TAPI + '?id=' + encodeURIComponent(t.id), { method, headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPinCache }, body: body ? JSON.stringify(body) : undefined });
+    const d = await res.json().catch(() => ({}));
+    if (res.status === 403) { adminPinCache = null; toast(d.error || 'Clave incorrecta'); return false; }
+    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
+    return d;
+  } catch (err) { console.error(err); toast('No se pudo completar la acción'); return false; }
+}
+async function askAgent(t){
+  t.ai = { pending: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
+  try {
+    const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
+    Object.assign(t, d.ticket);
     toast(t.id + (t.status === 'Resuelto' ? ' resuelta por el agente IA' : ' revisada por el agente IA'));
-  } catch (err) {
-    t.ai = { error: true }; console.error('Agente IA:', err); toast('El agente no pudo responder ahora');
-  }
-  saveTickets(); renderTickets(); renderAnalytics(); if (currentId === t.id) renderDialog(t);
+  } catch (err) { t.ai = { error: true }; console.error('Agente IA:', err); toast('El agente no pudo responder ahora'); }
+  renderTickets(); renderAnalytics(); if (currentId === t.id) renderDialog(t);
 }
 
-form.addEventListener('submit', e => {
+form.addEventListener('submit', async e => {
   e.preventDefault();
   const results = Object.keys(RULES).map(n => [n, validateField(n)]);
   const bad = results.find(r => !r[1]);
   if (bad) { fieldOf(bad[0]).focus(); return; }
-  const next = Math.max(2040, ...tickets.map(t => parseInt(String(t.id).replace(/\D/g, ''), 10) || 0)) + 1;
-  const t = { id:'BV-' + next, subject:fieldOf('subject').value.trim(), name:fieldOf('name').value.trim(), email:fieldOf('email').value.trim(), category:fieldOf('category').value,
-    priority:fieldOf('priority').value, status:'Abierto', description:fieldOf('description').value.trim(), createdAt:Date.now() };
-  tickets.unshift(t); saveTickets();
-  form.reset(); $('#tDescCount').textContent = '0/500';
-  $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
-  $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
-  tState.q = ''; tState.status = 'Todos'; tState.prio = ''; $('#tSearch').value = ''; $('#tPrio').value = '';
-  renderTickets(); renderAnalytics();
-  toast('Solicitud ' + t.id + ' registrada');
-  askAgent(t);
-});
-$('#restoreDemo').addEventListener('click', () => {
-  tickets = seedTickets(); saveTickets(); renderTickets(); renderAnalytics(); toast('Datos de demostración restaurados');
+  const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+  try {
+    const res = await fetch(TAPI, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      name: fieldOf('name').value, email: fieldOf('email').value, subject: fieldOf('subject').value,
+      category: fieldOf('category').value, priority: fieldOf('priority').value, description: fieldOf('description').value }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
+    const t = d.ticket; tickets.unshift(t);
+    form.reset(); $('#tDescCount').textContent = '0/500';
+    $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
+    $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
+    tState.q = ''; tState.status = 'Todos'; tState.prio = ''; $('#tSearch').value = ''; $('#tPrio').value = '';
+    renderTickets(); renderAnalytics();
+    toast('Solicitud ' + t.id + ' registrada');
+    askAgent(t);
+  } catch (err) { console.error(err); toast('No se pudo registrar: ' + (err.message || 'error')); }
+  finally { btn.disabled = false; }
 });
 
 /* --- Detalle de solicitud (diálogo) --- */
@@ -1598,8 +1619,7 @@ dlgBody.addEventListener('click', e => {
   const sb = e.target.closest('[data-status]');
   if (sb) {
     if (t.status !== sb.dataset.status) {
-      t.status = sb.dataset.status; saveTickets(); renderTickets(); renderAnalytics(); renderDialog(t);
-      toast(t.id + ' → ' + t.status);
+      adminCall('PATCH', t, { estado: sb.dataset.status }).then(d => { if (d) { t.status = d.ticket.status; renderTickets(); renderAnalytics(); renderDialog(t); toast(t.id + ' → ' + t.status); } });
     }
     const again = dlgBody.querySelector('[data-status="' + t.status + '"]'); if (again) again.focus();
     return;
@@ -1610,7 +1630,7 @@ dlgBody.addEventListener('click', e => {
       del.dataset.confirm = '1'; del.textContent = '¿Confirmar eliminación?';
       clearTimeout(delTimer); delTimer = setTimeout(() => { if (currentId) renderDialog(t); }, 4000);
     } else {
-      tickets = tickets.filter(x => x.id !== t.id); saveTickets(); dlg.close(); renderTickets(); renderAnalytics(); toast(t.id + ' eliminada');
+      adminCall('DELETE', t).then(d => { if (d) { tickets = tickets.filter(x => x.id !== t.id); dlg.close(); renderTickets(); renderAnalytics(); toast(t.id + ' eliminada'); } });
     }
   }
 });
@@ -1635,7 +1655,7 @@ const KB = [
   { keys:['proveedor','abastecimiento','suministro'], answer:() => 'Hay ' + nf.format(DB.stats.providers) + ' proveedores registrados (por ejemplo, ' + DB.providers.slice(0, 3).map(p => p.nombre).join(', ') + '). Los encuentras en el Directorio.' },
   { keys:['factura','pago','facturacion'], answer:() => 'El respaldo contiene ' + nf.format(DB.stats.invoices) + ' facturas registradas, junto con detalles y métodos de pago.' },
   { keys:['co2','carbono','ambiental','ambiente','emision','impacto'], answer:() => 'Los registros ambientales suman ' + nf.format(DB.stats.co2) + ' toneladas de CO₂ evitado y ' + nf.format(DB.stats.waste) + ' toneladas de residuos procesadas. Hay más contexto en Analítica.' },
-  { keys:['ticket','soporte','mesa de ayuda','solicitud','incidencia','problema'], answer:() => { const open = tickets.filter(t => t.status !== 'Resuelto').length; return 'En la Mesa de ayuda puedes registrar solicitudes con categoría y prioridad, filtrarlas y cambiar su estado. Ahora mismo hay ' + open + ' sin resolver de ' + tickets.length + ' guardadas en este navegador.'; } },
+  { keys:['ticket','soporte','mesa de ayuda','solicitud','incidencia','problema'], answer:() => { const open = tickets.filter(t => t.status !== 'Resuelto').length; return 'En la Mesa de ayuda puedes registrar solicitudes con categoría y prioridad, filtrarlas y cambiar su estado. Ahora mismo hay ' + open + ' sin resolver de ' + tickets.length + ' registradas.'; } },
   { keys:['tema','modo oscuro','modo claro','oscuro'], answer:() => 'Puedes alternar entre modo claro y oscuro con el botón de sol o luna de la barra superior.' }
 ];
 function localAnswer(msg){
@@ -1768,6 +1788,8 @@ async function loadLive(){
   }
 }
 loadLive();
+loadRemote(true);
+setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ayuda') loadRemote(true); }, 20000);
 
 /* =====================================================================
    I. DIRECCIÓN DE ARTE (solo presentación; no toca datos ni textos)
