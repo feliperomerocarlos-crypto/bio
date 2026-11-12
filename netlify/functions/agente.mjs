@@ -1,11 +1,12 @@
 // Netlify Function: agente IA de la mesa de ayuda de BioVolt
-// Ruta pública: /api/agente   (POST { subject, description, category, priority })
+// Ruta pública: /api/agente   (POST { id })
 //
+// Ahora recibe { id } de una solicitud guardada en la base de datos, la analiza y guarda su respuesta en la misma fila.
 // El agente (Gemini con "function calling") decide qué herramientas usar:
 // consultar plantas, inventario, producción, impacto ambiental o la guía de ayuda,
 // y termina llamando a responder_solicitud. Todas las herramientas son de SOLO LECTURA
 // y usan consultas fijas con parámetros (nunca SQL escrito por el usuario ni por la IA).
-// No recibe nombre ni correo del solicitante.
+// No recibe nombre ni correo del solicitante: solo asunto, descripción, categoría y prioridad.
 
 import mysql from "mysql2/promise";
 
@@ -23,8 +24,8 @@ const GUIA = [
     texto: "En Mesa de ayuda se completa nombre, correo, asunto, categoría, prioridad y una descripción de al menos 15 caracteres. Al enviarla recibe un ID (BV-xxxx) y queda en estado Abierto." },
   { id: "estados-prioridades", titulo: "Estados y prioridades", palabras: "estado prioridad abierto proceso resuelto critica alta media baja urgente",
     texto: "Estados: Abierto (recién creada), En proceso (alguien la está atendiendo) y Resuelto. Prioridades: Baja, Media, Alta y Crítica. Crítica se usa cuando algo impide trabajar. El estado se cambia desde el detalle de la solicitud." },
-  { id: "donde-se-guardan", titulo: "Dónde se guardan las solicitudes", palabras: "guardan guardado perdi desaparecen borrar navegador localstorage datos solicitudes",
-    texto: "Las solicitudes se guardan solo en el navegador de quien las crea. Si se borran los datos del sitio o se abre la página en otro navegador, no aparecen. El botón 'Restaurar datos de demostración' devuelve las solicitudes de ejemplo." },
+  { id: "donde-se-guardan", titulo: "Dónde se guardan las solicitudes", palabras: "guardan guardado perdi desaparecen borrar eliminar navegador computador pc otro datos solicitudes clave docente",
+    texto: "Las solicitudes se guardan en la base de datos del proyecto, así que se ven desde cualquier computador. El correo se guarda pero no se muestra a otras personas. Para cambiar el estado manualmente o eliminar una solicitud se necesita la clave de docente." },
   { id: "inventario", titulo: "Consultar inventario y biomasa", palabras: "inventario stock biomasa material almacen cantidad bagazo cascarilla",
     texto: "La sección Inventario permite buscar materiales por nombre y ver su cantidad registrada, el almacén y el stock disponible. Los datos se leen de la base de datos del proyecto." },
   { id: "plantas", titulo: "Plantas y su estado", palabras: "planta plantas mantenimiento operativa capacidad ubicacion estado",
@@ -51,6 +52,9 @@ const getPool = () =>
   }));
 const like = (v) => `%${String(v || "").replace(/[%_\\]/g, "").slice(0, 40)}%`;
 const q = async (sql, values = []) => (await getPool().query({ sql, values, timeout: 8000 }))[0];
+const COLS = `id, asunto, nombre, categoria, prioridad, estado, descripcion, UNIX_TIMESTAMP(creado_en)*1000 AS ts, ia_respuesta, ia_herramientas, ia_escalar, ia_motivo, UNIX_TIMESTAMP(ia_en)*1000 AS ia_ts`;
+const fmt = (r) => ({ id: "BV-" + r.id, subject: r.asunto, name: r.nombre, email: "Oculto por privacidad", category: r.categoria, priority: r.prioridad, status: r.estado, description: r.descripcion, createdAt: Number(r.ts),
+  ai: r.ia_respuesta ? { respuesta: r.ia_respuesta, herramientas: r.ia_herramientas ? r.ia_herramientas.split("|") : [], escalar: !!r.ia_escalar, motivo: r.ia_motivo || "", at: Number(r.ia_ts) || null } : null });
 
 const TOOLS = {
   consultar_plantas: {
@@ -146,9 +150,11 @@ export default async (request, context) => {
 
   try {
     const b = await request.json();
-    const subject = String(b.subject || "").trim().slice(0, 120), description = String(b.description || "").trim().slice(0, 600);
-    if (!subject || !description) return out(400, { error: "Falta el asunto o la descripción." });
-    const category = CATS.includes(b.category) ? b.category : "Otro", priority = PRIOS.includes(b.priority) ? b.priority : "Media";
+    const id = parseInt(String(b.id || "").replace(/\D/g, ""), 10);
+    if (!id) return out(400, { error: "Falta la solicitud." });
+    const row = (await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]))[0];
+    if (!row) return out(404, { error: "La solicitud no existe." });
+    const subject = row.asunto, description = row.descripcion, category = row.categoria, priority = row.prioridad;
 
     const contents = [{ role: "user", parts: [{ text: `SOLICITUD\nAsunto: ${subject}\nDescripción: ${description}\nCategoría elegida: ${category}\nPrioridad elegida: ${priority}` }] }];
     const used = []; let final = null; const t0 = Date.now(); let timedOut = false;
@@ -187,14 +193,12 @@ export default async (request, context) => {
 
     const respuesta = plain(final?.respuesta);
     if (!respuesta) return out(502, { error: "El agente no devolvió una respuesta." });
-    return out(200, {
-      respuesta,
-      categoria: CATS.includes(final.categoria) ? final.categoria : category,
-      prioridad: PRIOS.includes(final.prioridad) ? final.prioridad : priority,
-      estado: final.estado === "Resuelto" ? "Resuelto" : "En proceso",
-      escalar: final.escalar === true, motivo: plain(final.motivo).slice(0, 300),
-      herramientas: used,
-    });
+    const cat = CATS.includes(final.categoria) ? final.categoria : category, pri = PRIOS.includes(final.prioridad) ? final.prioridad : priority;
+    const escalar = final.escalar === true, estado = final.estado === "Resuelto" && !escalar ? "Resuelto" : "En proceso";
+    await q(`UPDATE solicitudes_ayuda SET categoria = ?, prioridad = ?, estado = ?, ia_respuesta = ?, ia_herramientas = ?, ia_escalar = ?, ia_motivo = ?, ia_en = NOW() WHERE id = ?`,
+      [cat, pri, estado, respuesta, used.join("|"), escalar ? 1 : 0, plain(final.motivo).slice(0, 300), id]);
+    const upd = (await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]))[0];
+    return out(200, { ticket: fmt(upd) });
   } catch (error) {
     console.error("Error del agente:", error?.message || error);
     return out(error.status === 429 ? 429 : 502, { error: error.message || "Error del agente." });
