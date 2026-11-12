@@ -10,13 +10,16 @@
 
 import mysql from "mysql2/promise";
 
-const MODEL = "gemini-3.6-flash";
+// Modelo del agente: se puede cambiar en Netlify con la variable GEMINI_MODEL_AGENTE (sin tocar el código).
+const MODEL = process.env.GEMINI_MODEL_AGENTE || "gemini-2.5-flash-lite";
+// "thinkingLevel" solo existe en los modelos Gemini 3; los 2.5 lo rechazan.
+const think = (m) => (/gemini-3/.test(m) ? { thinkingConfig: { thinkingLevel: "low" } } : {});
 const CATS = ["Sistemas", "Inventario", "Producción", "Logística", "Administración", "Otro"];
 const PRIOS = ["Baja", "Media", "Alta", "Crítica"];
 const MAX_STEPS = 3;
 // Modelo para la búsqueda en internet (Grounding con Google Search). Si el modelo principal no la admite, define GEMINI_SEARCH_MODEL en Netlify (p. ej. gemini-2.5-flash).
 const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || MODEL;
-const BUDGET_MS = 8500; // Netlify corta las funciones a los ~10 s: se responde antes de eso
+const BUDGET_MS = 8200; // Netlify corta las funciones a los ~10 s: se responde antes de eso
 
 export const config = { path: "/api/agente" };
 
@@ -104,12 +107,12 @@ const TOOLS = {
     run: async (a, ctx) => {
       const consulta = String(a.consulta || "").trim().slice(0, 200);
       if (!consulta) return { error: "Falta la consulta." };
-      const ms = Math.min(5500, ctx.left() - 2500); // deja tiempo para que el agente redacte la respuesta final
+      const ms = Math.min(ctx.cap ?? 5500, ctx.left() - (ctx.reserve ?? 2500)); // deja tiempo para que el agente redacte la respuesta final
       if (ms < 1500) throw new Error("Sin tiempo para buscar en internet.");
       const r = await gemini({
-        contents: [{ role: "user", parts: [{ text: `Explica en español, de forma clara y breve (máximo 6 pasos numerados, sin markdown), cómo resolver este problema técnico: ${consulta}` }] }],
+        contents: [{ role: "user", parts: [{ text: `Responde en español cercano, de tú, en texto plano sin markdown y sin saludo: da como máximo 5 pasos numerados y cortos (1) 2) 3)...) para resolver este problema técnico: ${consulta}` }] }],
         tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 700, thinkingConfig: { thinkingLevel: "low" } },
+        generationConfig: { temperature: 0.2, maxOutputTokens: 600, ...think(SEARCH_MODEL) },
       }, ctx.key, ms, SEARCH_MODEL);
       const cand = r?.candidates?.[0];
       const texto = (cand?.content?.parts || []).map((p) => p.text || "").join("").trim();
@@ -160,7 +163,7 @@ async function gemini(body, key, ms, model = MODEL) {
   });
   let r = await go(body), j = await r.json().catch(() => ({}));
   if (!r.ok && r.status === 400 && /thinking/i.test(j?.error?.message || "")) {
-    const { thinkingConfig, ...gc } = body.generationConfig; // el modelo no acepta ese ajuste: se reintenta sin él
+    const { thinkingConfig, ...gc } = body.generationConfig || {}; // el modelo no acepta ese ajuste: se reintenta sin él
     r = await go({ ...body, generationConfig: gc }); j = await r.json().catch(() => ({}));
   }
   if (!r.ok) { const e = new Error(j?.error?.message || `Error de Gemini: ${r.status}`); e.status = r.status; throw e; }
@@ -195,7 +198,7 @@ export default async (request, context) => {
           systemInstruction: { parts: [{ text: SYSTEM }] }, contents,
           tools: [{ functionDeclarations: [...Object.values(TOOLS).map((t) => t.decl), FINAL] }],
           toolConfig: { functionCallingConfig: { mode: "ANY", ...(last ? { allowedFunctionNames: [FINAL.name] } : {}) } },
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: "low" } },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1024, ...think(MODEL) },
         }, key, left);
         const content = result?.candidates?.[0]?.content;
         const calls = (content?.parts || []).filter((p) => p.functionCall);
@@ -203,6 +206,20 @@ export default async (request, context) => {
         contents.push(content); // se devuelve tal cual (incluye las firmas de pensamiento de Gemini 3)
         const fin = calls.find((c) => c.functionCall.name === FINAL.name);
         if (fin) { final = fin.functionCall.args || {}; break; }
+        // Atajo: si solo se pidió buscar en internet, esa respuesta ya es la final (ahorra una llamada a Gemini: tiempo y cuota por minuto)
+        if (calls.length === 1 && calls[0].functionCall.name === "buscar_en_internet") {
+          try {
+            const r = await TOOLS.buscar_en_internet.run(calls[0].functionCall.args || {}, { ...ctx, reserve: 600, cap: 7000 });
+            used.push(TOOLS.buscar_en_internet.label);
+            final = r.error ? { respuesta: "No pude buscar información para esta solicitud. Una persona debe revisarla.", estado: "En proceso", escalar: true, motivo: r.error }
+              : r.verificado_con_fuentes ? { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "Resuelto", escalar: false }
+              : { respuesta: r.resumen_de_internet, categoria: category, prioridad: priority, estado: "En proceso", escalar: true, motivo: "La información de internet no trae fuentes verificables." };
+          } catch (e) {
+            console.error("Búsqueda en internet falló:", e?.message || e);
+            final = { respuesta: "No pude buscar información en internet ahora. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true, motivo: e?.status === 429 ? "Límite de uso de la IA alcanzado; reintenta en un minuto." : "La búsqueda en internet no respondió a tiempo." };
+          }
+          break;
+        }
         const responses = await Promise.all(calls.map(async ({ functionCall: fc }) => {
           const tool = TOOLS[fc.name]; let res;
           if (!tool) res = { error: "Herramienta desconocida." };
@@ -219,6 +236,7 @@ export default async (request, context) => {
     }
     if (!final && timedOut) final = { respuesta: "No alcancé a completar el análisis a tiempo. Una persona debe revisar esta solicitud.", estado: "En proceso", escalar: true, motivo: "El agente tardó demasiado." };
 
+    console.log(`[agente] BV-${id} ${Date.now() - t0} ms · herramientas: ${used.join(", ") || "ninguna"}${timedOut ? " · TIEMPO AGOTADO" : ""}`);
     let respuesta = plain(final?.respuesta);
     if (!respuesta) return out(502, { error: "El agente no devolvió una respuesta." });
     // Aviso fijo (no depende del modelo) cuando la respuesta se apoyó en internet
