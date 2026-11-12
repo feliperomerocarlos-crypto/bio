@@ -1513,21 +1513,13 @@ $('#tDescription').addEventListener('input', e => { $('#tDescCount').textContent
 const CATS = ['Sistemas', 'Inventario', 'Producción', 'Logística', 'Administración', 'Otro'];
 tickets.forEach(x => { if (x.ai && x.ai.pending) delete x.ai; });
 const aiPill = t => !t.ai ? '' : t.ai.pending ? pill('IA revisando…', 'info') : t.ai.error ? '' : t.ai.escalar ? pill('Escalada a una persona', 'warn') : pill('Respondida por IA', 'ok');
-function webExtra(a){
-  const parts = String(a.respuesta).split('\n\nFUENTES\n');
-  const links = (parts[1] || '').split('\n').map(l => l.split(' | ')).filter(x => /^https:\/\//.test(x[1] || ''))
-    .map(x => `<a href="${esc(x[1])}" target="_blank" rel="noopener noreferrer">${esc(x[0])}</a>`);
-  const web = (a.herramientas || []).includes('Búsqueda en internet');
-  return (links.length ? `<p class="small muted" style="margin-top:8px">Fuentes: ${links.join(' · ')}</p>` : '') +
-    (web ? `<p class="small muted" style="margin-top:6px">Respuesta basada en información de internet: verifícala antes de aplicarla.</p>` : '');
-}
 function aiBlock(t){
   const a = t.ai, ask = (txt) => `<button class="btn btn-ghost btn-sm" type="button" data-ai>${txt}</button>`;
   let body;
   if (!a) body = `<p class="small muted" style="margin-bottom:10px">Un agente de IA puede revisar esta solicitud, consultar los datos de BioVolt y responder.</p>${ask('Pedir respuesta al agente IA')}`;
-  else if (a.pending) body = `<p class="muted">${a.web ? 'El agente está buscando en internet…' : 'El agente está consultando los datos…'}</p>`;
+  else if (a.pending) body = `<p class="muted">El agente está consultando los datos…</p>`;
   else if (a.error) body = `<p class="err" style="margin-bottom:10px">El agente no pudo responder ahora. Puedes intentarlo de nuevo.</p>${ask('Reintentar')}`;
-  else body = `<div class="desc-box">${esc(String(a.respuesta).split('\n\nFUENTES\n')[0])}</div>${webExtra(a)}
+  else body = `<div class="desc-box">${esc(a.respuesta)}</div>
     <p class="small muted" style="margin-top:8px">${a.herramientas && a.herramientas.length ? 'Consultó: ' + esc(a.herramientas.join(' · ')) + '. ' : 'No necesitó consultar datos. '}Categoría: ${esc(t.category)} · Prioridad: ${esc(t.priority)}.</p>
     ${a.escalar ? `<p class="small" style="margin-top:6px;color:var(--warn)">Requiere a una persona${a.motivo ? ': ' + esc(a.motivo) : '.'}</p>` : ''}
     <div style="margin-top:10px">${ask('Volver a consultar')}</div>`;
@@ -1560,20 +1552,9 @@ async function adminCall(method, t, body){
 async function askAgent(t){
   t.ai = { pending: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
   try {
-    const call = async body => {   // si el servidor no contesta en 25 s se corta: la solicitud nunca se queda "pensando" para siempre
-      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 25000);
-      try {
-        const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ac.signal });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-        return d;
-      } finally { clearTimeout(to); }
-    };
-    let d = await call({ id: t.id, dosPasos: true });
-    if (d.buscar_web) {   // el agente decidió que hace falta buscar en internet
-      t.ai = { pending: true, web: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
-      d = await call({ id: t.id, web: true, consulta: d.consulta });
-    }
+    const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
     Object.assign(t, d.ticket);
     toast(t.id + (t.status === 'Resuelto' ? ' resuelta por el agente IA' : ' revisada por el agente IA'));
   } catch (err) { t.ai = { error: true }; console.error('Agente IA:', err); toast('El agente no pudo responder ahora'); }
