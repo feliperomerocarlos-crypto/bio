@@ -4,5 +4,15 @@
   "version": "1.0.0",
   "dependencies": {
     "mysql2": "^3.11.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "playwright test",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/serve.mjs"
   }
 }

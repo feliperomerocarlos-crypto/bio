@@ -1,0 +1,33 @@
+.source-note{margin:0 0 18px;overflow-wrap:anywhere}
+.access-panel{margin-bottom:var(--lg);display:grid;gap:8px}
+.access-panel .input{flex:1;min-width:0}
+.comparison-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.period-panel .toolbar{align-items:flex-end}
+.period-panel label{flex:1;min-width:140px}
+.period-panel .select{width:100%}
+.input,.select,.textarea{min-width:0}
+.toolbar>*{max-width:100%}
+.search{min-width:min(220px,100%)}
+details>summary{cursor:pointer;color:var(--accent-text);min-height:36px}
+@media(max-width:733px){
+  .comparison-grid{grid-template-columns:1fr}
+  #ticketStats{grid-template-columns:1fr!important}
+  .toolbar{align-items:stretch}
+  .toolbar>label,.toolbar>.select{width:100%}
+  .hero-tag{max-width:100%;white-space:normal}
+  .bar-val{white-space:normal;overflow-wrap:anywhere}
+  .chat{min-height:400px;height:calc(100dvh - 150px)}
+  .view .container{overflow-wrap:anywhere}
+}
+
+@media print{
+  body>*{display:none!important}
+  body>#printReport{display:block!important;background:#fff;color:#000;padding:16px;font:12px/1.5 sans-serif}
+  #printReport table{width:100%;min-width:0;table-layout:fixed;font-size:11px}
+  #printReport td{overflow-wrap:anywhere;color:#000;border-bottom:1px solid #aaa}
+  #printReport h1{color:#1F6A22;margin-bottom:20px}
+  @page{size:A4 landscape;margin:12mm}
+}
+/* Las etiquetas solo para lectores de pantalla conservan su tamaño de 1px. */
+.toolbar>label.sr-only{width:1px;max-width:1px}
+.hero{overflow:clip}

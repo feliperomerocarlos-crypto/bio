@@ -121,8 +121,12 @@ async function getSnapshot() {
     ].slice(0, 40);
   }
 
-  let text = JSON.stringify(data);
-  if (text.length > 14000) text = text.slice(0, 14000);
+  // Conservar JSON válido al limitar el resumen.
+  const bounded = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (JSON.stringify({ ...bounded, [key]: value }).length <= 14000) bounded[key] = value;
+  }
+  const text = JSON.stringify(bounded);
   snapshotCache = { at: Date.now(), text };
   return text;
 }
@@ -149,7 +153,7 @@ const toPlainText = (s) =>
 export const config = { path: "/api/chat" };
 
 export default async (request, context) => {
-  const headers = { "Content-Type": "application/json; charset=utf-8" };
+  const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
   const respond = (status, data) =>
     new Response(JSON.stringify(data), { status, headers });
 
@@ -213,6 +217,7 @@ export default async (request, context) => {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
       {
+        signal: AbortSignal.timeout(12000),
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -231,7 +236,7 @@ export default async (request, context) => {
     if (!response.ok) {
       const detail = result?.error?.message || `Error de Gemini: ${response.status}`;
       console.error("Error de Gemini:", response.status, detail);
-      return respond(502, { error: detail, geminiStatus: response.status });
+      return respond(response.status === 429 ? 429 : 502, { error: response.status === 429 ? "Gemini alcanzó su cuota. Inténtalo más tarde." : "Gemini no está disponible en este momento." });
     }
 
     const raw = result?.candidates?.[0]?.content?.parts
@@ -244,9 +249,9 @@ export default async (request, context) => {
       return respond(502, { error: "Gemini no devolvió una respuesta." });
     }
 
-    return respond(200, { reply: toPlainText(raw) });
+    return respond(200, { reply: toPlainText(raw), source: "gemini", dataSource: snapshot ? "tidb" : "unavailable" });
   } catch (error) {
     console.error("Error en BioVolt Assistant:", error);
-    return respond(500, { error: error.message || "Error interno del asistente." });
+    return respond(error.name === "TimeoutError" ? 504 : 500, { error: "El asistente no pudo responder a tiempo. Inténtalo más tarde." });
   }
 };
