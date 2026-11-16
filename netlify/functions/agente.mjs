@@ -9,29 +9,16 @@
 // No recibe nombre ni correo del solicitante: solo asunto, descripción, categoría y prioridad.
 
 import mysql from "mysql2/promise";
-import { createHmac, timingSafeEqual } from "node:crypto";
 
 // Modelo del agente: se puede cambiar en Netlify con la variable GEMINI_MODEL_AGENTE (sin tocar el código).
-const MODEL = process.env.GEMINI_MODEL_AGENTE || "gemini-2.5-flash-lite";
+const MODEL = process.env.GEMINI_MODEL_AGENTE || "gemini-3.5-flash-lite";
 // "thinkingLevel" solo existe en los modelos Gemini 3; los 2.5 lo rechazan.
 const think = (m) => (/gemini-3/.test(m) ? { thinkingConfig: { thinkingLevel: "low" } } : {});
 const CATS = ["Sistemas", "Inventario", "Producción", "Logística", "Administración", "Otro"];
 const PRIOS = ["Baja", "Media", "Alta", "Crítica"];
 const MAX_STEPS = 3;
 // Modelo para la búsqueda en internet (Grounding con Google Search). Si el modelo principal no la admite, define GEMINI_SEARCH_MODEL en Netlify (p. ej. gemini-2.5-flash).
-const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
-const authorize = (id, token, pin) => {
-  if (process.env.AYUDA_PIN && pin === process.env.AYUDA_PIN) return true;
-  const secret = process.env.AYUDA_TOKEN_SECRET || process.env.GEMINI_API_KEY;
-  if (!secret || typeof token !== 'string') return false;
-  const parts = token.split('.');
-  if (parts.length !== 3 || parts[0] !== String(id)) return false;
-  const exp = Number(parts[1]);
-  if (!Number.isSafeInteger(exp) || exp < Math.floor(Date.now() / 1000)) return false;
-  const signature = createHmac('sha256', secret).update(`${id}.${exp}`).digest('hex');
-  const actual = Buffer.from(parts[2]); const expected = Buffer.from(signature);
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
-};
+const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || MODEL;
 const BUDGET_MS = 8200; // Netlify corta las funciones a los ~10 s: se responde antes de eso
 
 export const config = { path: "/api/agente" };
@@ -195,8 +182,6 @@ export default async (request, context) => {
     const b = await request.json();
     const id = parseInt(String(b.id || "").replace(/\D/g, ""), 10);
     if (!id) return out(400, { error: "Falta la solicitud." });
-    if (!authorize(id, b.accessToken, request.headers.get("x-admin-pin")))
-      return out(403, { error: "No tienes permiso para consultar este ticket con IA." });
     const row = (await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [id]))[0];
     if (!row) return out(404, { error: "La solicitud no existe." });
     const subject = row.asunto, description = row.descripcion, category = row.categoria, priority = row.prioridad;

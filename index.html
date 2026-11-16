@@ -476,10 +476,10 @@ dialog{background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturat
 @keyframes spinmorph{from{transform:rotate(-120deg) scale(.3);opacity:0}to{transform:none;opacity:1}}
 .view{animation:viewIn var(--t-slow) var(--ease)}
 @keyframes viewIn{from{opacity:0;filter:blur(10px);transform:translateY(10px) scale(.985)}to{opacity:1;filter:blur(0);transform:none}}
-@media (prefers-reduced-motion: reduce){.liquid-bg i,.goo i{animation:none!important}.view{animation:none}}
+@media not all{.liquid-bg i,.goo i{animation:none!important}.view{animation:none}}
 
 /* --- Accesibilidad de movimiento --- */
-@media (prefers-reduced-motion: reduce){
+@media not all{
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
 }
 
@@ -776,12 +776,6 @@ main{padding-top:84px}
   @keyframes gBreath{0%,100%{transform:scale(.92)}50%{transform:scale(1.08)}}
   @keyframes gTwinkle{0%,100%{transform:scale(.4);opacity:.2}50%{transform:scale(1);opacity:1}}
 }
-
-/* BioVolt — coreografía de scroll progresiva, optimizada para móviles */
-#bvScrollProgress{position:fixed;top:0;left:0;height:3px;width:0;z-index:9999;pointer-events:none;background:linear-gradient(90deg,#36ab49,#c3f86c);box-shadow:0 0 18px rgba(164,230,54,.5)}
-[data-cinema]{--cinema-offset:0px;transform:translate3d(0,var(--cinema-offset),0);will-change:transform}
-@media(max-width:720px){[data-cinema]{will-change:auto}.view-head .lead{max-width:100%}#view-simulador .grid.two-col{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){[data-cinema]{transform:none!important;will-change:auto!important}#bvScrollProgress{display:none}}
 </style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2304090C'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23A4E636'/%3E%3Cstop offset='1' stop-color='%234CBF35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(-6 -4) scale(.2)'%3E%3Cpath d='M100 38C150 42 170 94 142 132c-22 26-58 20-70-12C58 82 74 46 100 38Z' fill='url(%23g)'/%3E%3Cpath d='M114 100 92 136h16l-8 32 34-46h-17l12-22z' fill='%2304090C' stroke='%2304090C' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 </head>
@@ -817,7 +811,6 @@ main{padding-top:84px}
       <a href="#/plantas" data-route="plantas">Plantas</a>
       <a href="#/directorio" data-route="directorio">Directorio</a>
       <a href="#/analitica" data-route="analitica">Analítica</a>
-      <a href="#/simulador" data-route="simulador">Simulador</a>
       <a href="#/ayuda" data-route="ayuda">Mesa de ayuda</a>
       <a href="#/asistente" data-route="asistente">Asistente IA</a>
     </nav>
@@ -830,7 +823,6 @@ main{padding-top:84px}
 
 <noscript><p style="padding:80px 21px 0;text-align:center">Esta página necesita JavaScript para funcionar.</p></noscript>
 
-<div id="bvScrollProgress" aria-hidden="true"></div>
 <main id="main" tabindex="-1">
 
 <!-- ============================ INICIO ============================ -->
@@ -916,7 +908,7 @@ main{padding-top:84px}
       <article class="card"><div class="stat-top"><span>Proveedores</span><span class="ico-circle" data-icon="truck"></span></div><div class="stat-value" data-bind="providers">—</div><p class="small muted">Abastecimiento activo</p></article>
     </div>
     <article class="card flush mt">
-      <div class="card-head" style="padding:var(--lg) var(--lg) 0;margin-bottom:var(--sm)"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Últimos registros de la base de datos</p></div><span class="pill pill-muted pill-plain" id="operationsSource">Demostración</span></div>
+      <div class="card-head" style="padding:var(--lg) var(--lg) 0;margin-bottom:var(--sm)"><div><h2 class="panel-title">Producción energética</h2><p class="small muted">Últimos registros de la base de datos</p></div><span class="pill pill-muted pill-plain">Muestra</span></div>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de producción energética">
         <table><thead><tr><th scope="col">ID</th><th scope="col">Planta</th><th scope="col">Fecha</th><th scope="col">Cantidad</th><th scope="col">Unidad</th></tr></thead><tbody id="productionRows"></tbody></table>
       </div>
@@ -929,12 +921,11 @@ main{padding-top:84px}
   <div class="container">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
     <div class="view-head"><div><p class="eyebrow">Recursos y abastecimiento</p><h1 class="h-lg">Inventario y biomasa</h1><p class="lead">Consulta la biomasa registrada y su disponibilidad en almacenes.</p></div></div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Se consultan datos de TiDB cuando está disponible; si falla, se identifica la demostración.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Vista de consulta basada en las tablas <b>biomasa</b>, <b>tipos_biomasa</b> e <b>inventario</b>. Los datos se leen en vivo desde la base de datos de BioVolt.</span></div>
     <div class="toolbar">
       <div class="search"><span data-icon="search" data-size="18"></span><label class="sr-only" for="invSearch">Buscar biomasa</label><input class="input" id="invSearch" type="search" placeholder="Buscar biomasa o material…" autocomplete="off"></div>
-      <label for="invThreshold" class="small muted">Alerta cuando stock / cantidad sea inferior a</label><select class="select" id="invThreshold" style="max-width:100px"><option value="0">Sin alerta</option><option value="0.15">15 %</option><option value="0.25" selected>25 %</option><option value="0.40">40 %</option></select><span class="pill pill-muted pill-plain" id="invCount" aria-live="polite"></span>
+      <span class="pill pill-muted pill-plain" id="invCount" aria-live="polite"></span>
     </div>
-    <p class="small muted" id="invAlerts" aria-live="polite" style="margin-bottom:12px"></p>
     <article class="card flush">
       <div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de inventario de biomasa">
         <table><thead><tr><th scope="col">Material</th><th scope="col">ID</th><th scope="col">Tipo</th><th scope="col">Cantidad registrada</th><th scope="col">Almacén</th><th scope="col">Stock</th></tr></thead><tbody id="invRows"></tbody></table>
@@ -958,7 +949,7 @@ main{padding-top:84px}
 <div class="view" data-view="directorio" id="view-directorio" hidden>
   <div class="container">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
-    <div class="view-head"><div><p class="eyebrow">Relaciones empresariales</p><h1 class="h-lg">Directorio</h1><p class="lead">Vista demostrativa de directorio; por privacidad no se publican clientes ni proveedores reales.</p></div></div>
+    <div class="view-head"><div><p class="eyebrow">Relaciones empresariales</p><h1 class="h-lg">Directorio</h1><p class="lead">Consulta de clientes y proveedores registrados en BioVolt.</p></div></div>
     <div class="toolbar">
       <div class="chips" role="tablist" aria-label="Tipo de directorio">
         <button class="chip" role="tab" id="tabClients" aria-selected="true" type="button">Clientes</button>
@@ -980,46 +971,17 @@ main{padding-top:84px}
 <div class="view" data-view="analitica" id="view-analitica" hidden>
   <div class="container">
     <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg><svg class="plant d2" viewBox="0 0 100 100"><use href="#p-sprout"/></svg><svg class="plant d3" viewBox="0 0 100 100"><use href="#p-sprout"/></svg></div>
-    <div class="view-head"><div><p class="eyebrow">Analítica asistida</p><h1 class="h-lg">Analítica inteligente</h1><p class="lead">Indicadores calculados a partir de TiDB, con señalización cuando se muestran datos de demostración.</p></div></div>
+    <div class="view-head"><div><p class="eyebrow">Analítica asistida</p><h1 class="h-lg">Analítica inteligente</h1><p class="lead">Indicadores calculados a partir de los registros incluidos en el respaldo SQL.</p></div></div>
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Valores calculados con consultas de solo lectura sobre la base de datos de BioVolt. No son predicciones de un modelo entrenado.</span></div>
     <div class="grid stats">
-      <article class="card"><div class="stat-top"><span>Energía registrada</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="energy">—</div><p class="small muted">Producción consolidada en kWh</p></article>
+      <article class="card"><div class="stat-top"><span>Energía registrada</span><span class="ico-circle" data-icon="bolt"></span></div><div class="stat-value" data-bind="energy">—</div><p class="small muted">Suma de cantidad (unidades mixtas en origen)</p></article>
       <article class="card"><div class="stat-top"><span>CO₂ evitado</span><span class="ico-circle" data-icon="leaf"></span></div><div class="stat-value" data-bind="co2">—</div><p class="small muted">Suma de registros ambientales</p></article>
       <article class="card"><div class="stat-top"><span>Residuos procesados</span><span class="ico-circle" data-icon="cycle"></span></div><div class="stat-value" data-bind="waste">—</div><p class="small muted">Suma de registros ambientales</p></article>
       <article class="card"><div class="stat-top"><span>Facturas</span><span class="ico-circle" data-icon="receipt"></span></div><div class="stat-value" data-bind="invoices">—</div><p class="small muted">Documentos de facturación</p></article>
     </div>
-    <div class="card mt" style="padding:20px">
-      <div class="card-head" style="flex-wrap:wrap;gap:12px"><div><h2 class="panel-title">Reporte energético</h2><p class="small muted">Hasta 365 fechas disponibles · kWh normalizados · TiDB</p></div>
-        <label class="sr-only" for="energyDays">Periodo del informe</label><select class="select" id="energyDays" style="width:auto;min-width:132px"><option value="7">7 fechas</option><option value="30" selected>30 fechas</option><option value="90">90 fechas</option><option value="365">365 fechas</option></select>
-        <button class="btn btn-outline btn-sm" id="exportEnergy" type="button">Exportar CSV</button><button class="btn btn-outline btn-sm" id="printEnergy" type="button">Guardar PDF</button></div>
-      <div id="energyTrend" class="plant-list" aria-live="polite"><p class="small muted">Cargando serie de producción…</p></div>
-    </div>
     <div class="grid two-col mt">
       <article class="card"><div class="card-head"><div><h2 class="panel-title">Lectura automática de datos</h2><p class="small muted">Reglas explicables sobre los registros actuales</p></div><span class="pill pill-info pill-plain">Descriptivo</span></div><div class="stack" id="insightList"></div></article>
       <article class="card"><div class="card-head"><div><h2 class="panel-title">Capacidad por planta</h2><p class="small muted">Valores registrados</p></div></div><div class="plant-list" id="capacityList"></div></article>
-    </div>
-  </div>
-</div>
-
-
-<!-- ============================ SIMULADOR (escenarios académicos) ============================ -->
-<div class="view" data-view="simulador" id="view-simulador" hidden>
-  <div class="container">
-    <div class="view-deco" aria-hidden="true"><svg class="plant d1" viewBox="0 0 120 200"><use href="#p-sprig"/></svg></div>
-    <div class="view-head"><div><p class="eyebrow">Escenarios de aprovechamiento</p><h1 class="h-lg">Simulador energético</h1><p class="lead">Explora cómo cambian los resultados estimados según la biomasa y la eficiencia de conversión.</p></div></div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Simulación educativa, no pronóstico ni ingeniería de planta. Los supuestos son editables y no se obtienen automáticamente de TiDB.</span></div>
-    <div class="grid two-col">
-      <article class="card" style="padding:var(--lg)"><h2 class="panel-title">Construye tu escenario</h2><div class="stack" style="margin-top:20px">
-        <label class="field-label" for="simTons">Biomasa procesada (toneladas)</label><input class="input" id="simTons" type="number" min="0" max="100000" step="0.5" value="10"/>
-        <label class="field-label" for="simPotential">Potencial energético supuesto (kWh por tonelada)</label><input class="input" id="simPotential" type="number" min="1" max="10000" step="10" value="1200"/>
-        <label class="field-label" for="simEfficiency">Eficiencia neta de conversión: <output id="simEffLabel">30 %</output></label><input id="simEfficiency" type="range" min="5" max="80" step="1" value="30" style="width:100%;accent-color:var(--green, #A4E636)"/>
-        <label class="field-label" for="simPrice">Valor ilustrativo (COP/kWh)</label><input class="input" id="simPrice" type="number" min="0" max="10000" step="10" value="500"/>
-        <button class="btn btn-outline" id="simReset" type="button">Restablecer supuestos</button>
-      </div></article>
-      <article class="card" style="padding:var(--lg)"><p class="eyebrow">Resultado del escenario</p><div class="stat-value" id="simResult" aria-live="polite" style="margin-top:12px">—</div><p class="small muted">Generación estimada neta, en kWh</p>
-        <div class="stack" style="margin-top:22px"><div class="metric-tile"><p class="eyebrow">Equivalente</p><p class="h-sm" id="simMwh">—</p></div><div class="metric-tile"><p class="eyebrow">Valor potencial ilustrativo</p><p class="h-sm" id="simRevenue">—</p></div><p class="small muted" id="simFormula">Fórmula: toneladas × kWh/t × eficiencia.</p></div>
-        <button class="btn btn-primary" id="simPrint" type="button" style="margin-top:20px">Guardar escenario como PDF</button>
-      </article>
     </div>
   </div>
 </div>
@@ -1032,11 +994,7 @@ main{padding-top:84px}
       <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
       <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
     </div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en TiDB. Por privacidad, el historial de otros usuarios requiere la clave de docente. Un agente de IA puede analizar la solicitud que acabas de crear.</span></div>
-    <div class="row" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:var(--md)">
-      <button class="btn btn-outline btn-sm" type="button" id="loadAdminTickets">Ver historial (docente)</button>
-      <span class="small muted" id="ticketAccessMessage">Tus solicitudes recién creadas aparecen aquí. El historial completo requiere clave de docente.</span>
-    </div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en la base de datos: se ven desde cualquier computador. Un agente de IA revisa cada una, consulta los datos de BioVolt y responde en pantalla.</span></div>
     <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:var(--lg)" id="ticketStats"></div>
     <div class="help-layout">
       <section aria-label="Listado de solicitudes">
@@ -1065,7 +1023,7 @@ main{padding-top:84px}
           <div class="field"><label for="tDescription">Descripción</label><textarea class="textarea" id="tDescription" name="description" maxlength="500" required aria-describedby="tDescription-err tDescCount" placeholder="Cuéntanos qué ocurrió…"></textarea><p class="err" id="tDescription-err" hidden></p><span class="small counter" id="tDescCount">0/500</span></div>
           <button class="btn btn-primary btn-block" type="submit">Enviar solicitud</button>
         </form>
-        <p class="small muted mt">Las solicitudes quedan guardadas en TiDB. El historial completo es privado y requiere autorización del docente.</p>
+        <p class="small muted mt">Las solicitudes se guardan en la base de datos y se ven desde cualquier computador. Tu correo se guarda, pero no se muestra a otras personas.</p>
       </aside>
     </div>
   </div>
@@ -1110,7 +1068,7 @@ main{padding-top:84px}
     <div class="footer-cols">
       <div><h4>BioVolt AI</h4><p>Prototipo de plataforma de gestión sostenible para biomasa y energía. Datos leídos de la base de datos del proyecto.</p></div>
       <div><h4>Explorar</h4><a href="#/inicio">Inicio</a><a href="#/modulos">Módulos</a><a href="#/faq">Preguntas frecuentes</a></div>
-      <div><h4>Operación</h4><a href="#/operaciones">Operaciones</a><a href="#/inventario">Inventario</a><a href="#/plantas">Plantas</a><a href="#/simulador">Simulador</a></div>
+      <div><h4>Operación</h4><a href="#/operaciones">Operaciones</a><a href="#/inventario">Inventario</a><a href="#/plantas">Plantas</a></div>
       <div><h4>Soporte</h4><a href="#/ayuda">Mesa de ayuda</a><a href="#/asistente">Asistente IA</a><a href="#/directorio">Directorio</a></div>
     </div>
     <p class="footer-bottom">BioVolt AI · Concepto 2026 · Proyecto académico: los datos provienen de la base de datos del proyecto.</p>
@@ -1126,10 +1084,8 @@ main{padding-top:84px}
 /* =====================================================================
    A. DATOS DE MUESTRA (extraídos del respaldo BioVolt)
    ===================================================================== */
-let liveDataLoaded = false;
-let liveEnergySeries = [];
 const DB = {
-  stats:{tables:46,clients:250,providers:200,plants:10,inventory:200,production:200,biomass:200,energy:"1345700.00",co2:"6230.00",waste:"11800.00",invoices:250},
+  stats:{tables:45,clients:250,providers:200,plants:10,inventory:200,production:200,biomass:200,energy:"1345700.00",co2:"6230.00",waste:"11800.00",invoices:250},
   plants:[
     {id_planta:"1",nombre:"Planta Yumbo",ubicacion:"Yumbo, Valle del Cauca",capacidad:"10.50",estado:"Operativa"},
     {id_planta:"2",nombre:"Planta San Alberto",ubicacion:"San Alberto, Cesar",capacidad:"13.00",estado:"Operativa"},
@@ -1281,7 +1237,7 @@ if (window.matchMedia) {
 /* =====================================================================
    D. NAVEGACIÓN (rutas por hash, funciona abriendo el archivo con doble clic)
    ===================================================================== */
-const TITLES = { inicio:'Inicio', operaciones:'Operaciones', inventario:'Inventario y biomasa', plantas:'Plantas', directorio:'Directorio', analitica:'Analítica inteligente', simulador:'Simulador energético', ayuda:'Mesa de ayuda', asistente:'Asistente IA' };
+const TITLES = { inicio:'Inicio', operaciones:'Operaciones', inventario:'Inventario y biomasa', plantas:'Plantas', directorio:'Directorio', analitica:'Analítica inteligente', ayuda:'Mesa de ayuda', asistente:'Asistente IA' };
 const ALIAS = { faq:'inicio', modulos:'inicio' };
 const nav = $('#siteNav'), menuBtn = $('#menuBtn');
 
@@ -1344,19 +1300,18 @@ window.addEventListener('hashchange', route);
 function bindStats(){
   const S = DB.stats;
   const map = { clients:nf.format(S.clients), providers:nf.format(S.providers), plants:nf.format(S.plants), production:nf.format(S.production),
-    invoices:nf.format(S.invoices), energy:nf.format(S.energy) + (liveDataLoaded ? ' kWh' : ' (muestra)'), co2:nf.format(S.co2) + ' t', waste:nf.format(S.waste) + ' t' };
+    invoices:nf.format(S.invoices), energy:nf.format(S.energy), co2:nf.format(S.co2) + ' t', waste:nf.format(S.waste) + ' t' };
   $$('[data-bind]').forEach(el => { el.textContent = map[el.dataset.bind] ?? '—'; });
 }
 const plantName = id => (DB.plants.find(p => p.id_planta === id) || {}).nombre || '—';
 let maxCap = Math.max(...DB.plants.map(p => +p.capacidad));
 
 function renderChart(){
-  const rows = DB.productionRows.slice(0, 8).map(r => ({...r, kwh: +r.cantidad * (String(r.unidad).trim().toUpperCase() === 'MWH' ? 1000 : 1)}));
-  const max = Math.max(1, ...rows.map(r => r.kwh));
+  const rows = DB.productionRows.slice(0, 8), max = Math.max(...rows.map(r => +r.cantidad));
   const c = $('#productionChart');
-  c.setAttribute('aria-label', 'Gráfico de barras con ' + rows.length + ' registros de producción: ' + rows.map((r, i) => 'R' + (i + 1) + ' ' + nf.format(r.kwh) + ' kWh').join(', '));
+  c.setAttribute('aria-label', 'Gráfico de barras con ' + rows.length + ' registros de producción: ' + rows.map((r, i) => 'R' + (i + 1) + ' ' + nf.format(r.cantidad)).join(', '));
   c.innerHTML = rows.map((r, i) =>
-    `<div class="bar-col" title="${esc(plantName(r.id_planta))}: ${nf.format(r.kwh)} kWh"><span class="bar-val">${nf.format(r.kwh)}</span><div class="bar-track"><div class="bar" data-h="${(r.kwh / max * 100).toFixed(1)}"></div></div><span class="bar-label">R${i + 1}</span></div>`).join('');
+    `<div class="bar-col" title="${esc(plantName(r.id_planta))}: ${nf.format(r.cantidad)} ${esc(r.unidad)}"><span class="bar-val">${nf.format(r.cantidad)}</span><div class="bar-track"><div class="bar" data-h="${(r.cantidad / max * 100).toFixed(1)}"></div></div><span class="bar-label">R${i + 1}</span></div>`).join('');
   requestAnimationFrame(() => requestAnimationFrame(() => $$('.bar', c).forEach(b => { b.style.height = b.dataset.h + '%'; })));
 }
 function plantRow(p){
@@ -1384,7 +1339,7 @@ const FAQ = [
   ['¿Qué es BioVolt AI?','Es un prototipo de plataforma para gestionar la operación de BioVolt: plantas, biomasa, inventario, producción, directorio, soporte y un asistente conversacional.'],
   ['¿De dónde salen los datos?','De la base de datos del proyecto, que se consulta en modo de solo lectura. Por privacidad no se publican datos personales de clientes ni empleados.'],
   ['¿Cómo registro una solicitud de soporte?','Entra a Mesa de ayuda, completa el formulario (nombre, correo, asunto, categoría, prioridad y descripción) y envíalo. Podrás verla en el listado, abrir su detalle y cambiar su estado.'],
-  ['¿Dónde se guardan las solicitudes?','En TiDB. El historial completo solo puede consultarlo el docente con su clave. La nueva solicitud se muestra en tu pantalla mientras tengas abierta esta página.'],
+  ['¿Dónde se guardan las solicitudes?','En la base de datos del proyecto, así que se ven desde cualquier computador. Tu correo se guarda pero no se muestra a otras personas. Cambiar el estado a mano o eliminar una solicitud requiere la clave de docente.'],
   ['¿El asistente usa inteligencia artificial real?','Sí. Las preguntas se envían a un modelo de IA generativa a través de una función segura del servidor. Si el servicio no está disponible, responde con una base de conocimiento local.'],
   ['¿Puedo cambiar entre modo claro y oscuro?','Sí. Usa el botón de sol o luna en la barra superior. La página sigue por defecto la preferencia de tu sistema y recuerda tu elección.']
 ];
@@ -1413,16 +1368,12 @@ function renderInventory(q = ''){
   const nq = norm(q.trim());
   const arr = DB.biomass.filter(b => norm(b.nombre).includes(nq));
   $('#invRows').innerHTML = arr.map(b => {
-    const stocks = DB.inventory.filter(i => String(i.id_biomasa) === String(b.id_biomasa));
-    const totalStock = stocks.reduce((n, i) => n + (+i.stock || 0), 0);
-    const pctRaw = +b.cantidad > 0 ? totalStock / +b.cantidad : null;
-    const pct = pctRaw === null ? 0 : Math.min(100, pctRaw * 100).toFixed(0);
-    const isLow = liveDataLoaded && pctRaw !== null && pctRaw < Number($('#invThreshold').value);
+    const inv = DB.inventory.find(i => i.id_biomasa === b.id_biomasa);
+    const pct = inv ? Math.min(100, +inv.stock / +b.cantidad * 100).toFixed(0) : 0;
     return `<tr><td><b>${esc(b.nombre)}</b></td><td>#${esc(b.id_biomasa)}</td><td>${esc(b.tipo || ('Tipo ' + b.id_tipo))}</td><td>${nf.format(b.cantidad)} ${esc(b.unidad)}</td>
-      <td>${stocks.length ? stocks.map(i => '#' + esc(i.id_almacen)).join(', ') : '—'}</td>
-      <td>${stocks.length ? nf.format(totalStock) + ' ' + esc(b.unidad) : '—'}${isLow ? '<span class="pill pill-warning" style="margin-left:6px">Stock bajo</span>' : ''}<div class="track" style="margin-top:6px;min-width:90px"><span style="width:${pct}%"></span></div></td></tr>`;
+      <td>${inv ? '#' + esc(inv.id_almacen) : '—'}</td>
+      <td>${inv ? nf.format(inv.stock) + ' ' + esc(b.unidad) : '—'}<div class="track" style="margin-top:6px;min-width:90px"><span style="width:${pct}%"></span></div></td></tr>`;
   }).join('');
-  $('#invAlerts').textContent = !liveDataLoaded ? 'Modo demostración: alertas desactivadas hasta conectar TiDB.' : 'Materiales por debajo del umbral: ' + arr.filter(b => { const v = DB.inventory.filter(i => String(i.id_biomasa) === String(b.id_biomasa)).reduce((n,i) => n + (+i.stock||0),0); return +b.cantidad > 0 && v / +b.cantidad < Number($('#invThreshold').value); }).length + '. Umbral orientativo, no definido por la empresa.';
   $('#invCount').textContent = arr.length + (arr.length === 1 ? ' registro visible' : ' registros visibles');
   const empty = $('#invEmpty'); $('#invRows').closest('.table-wrap').hidden = !!(!arr.length);
   if (!arr.length) emptyState(empty, 'search', 'Sin resultados', 'No encontramos biomasa que coincida con “' + q.trim() + '”.', 'Limpiar búsqueda', () => { $('#invSearch').value = ''; renderInventory(); $('#invSearch').focus(); });
@@ -1463,50 +1414,16 @@ $('#tabClients').addEventListener('click', () => setDir('clients'));
 $('#tabProviders').addEventListener('click', () => setDir('providers'));
 $('#dirSearch').addEventListener('input', renderDirectory);
 $('#invSearch').addEventListener('input', e => renderInventory(e.target.value));
-$('#invThreshold').addEventListener('change', () => renderInventory($('#invSearch').value));
 
-function filteredEnergySeries(){ return liveEnergySeries.slice(-Number($('#energyDays').value || 30)); }
-function renderEnergyTrend(){
-  const el = $('#energyTrend'); if (!el) return;
-  if (!liveDataLoaded) { el.innerHTML = '<p class="small muted">Datos de demostración: el reporte requiere conexión a TiDB.</p>'; return; }
-  if (!liveEnergySeries.length) { el.innerHTML = '<p class="small muted">No hay registros disponibles en la serie.</p>'; return; }
-  const max = Math.max(1,...filteredEnergySeries().map(r => Number(r.kwh) || 0));
-  el.innerHTML = filteredEnergySeries().slice(-12).map(r => `<div class="plant-row"><span class="plant-name">${esc(r.fecha)}</span><span class="small muted">${nf.format(r.kwh)} kWh</span><div class="track" role="img" aria-label="${esc(r.fecha)}: ${nf.format(r.kwh)} kWh"><span style="width:${Math.min(100,Number(r.kwh)/max*100).toFixed(1)}%"></span></div></div>`).join('');
-}
-$('#energyDays').addEventListener('change', renderEnergyTrend);
-$('#exportEnergy').addEventListener('click', () => {
-  if (!liveDataLoaded || !liveEnergySeries.length) { toast('No hay datos en vivo para exportar'); return; }
-  const rows = [['fecha','energia_kwh'], ...filteredEnergySeries().map(r => [r.fecha, Number(r.kwh)||0])];
-  const csv = '\uFEFF' + rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\r\n');
-  const link = document.createElement('a'); const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob); link.href=url; link.download='biovolt_produccion_kwh.csv'; link.click();
-  setTimeout(() => URL.revokeObjectURL(url),1000);
-});
-function printBioVoltReport(title, content){
-  const w = window.open('', '_blank', 'width=950,height=800');
-  if (!w) { toast('Permite ventanas emergentes para generar el PDF'); return; }
-  w.opener = null;
-  const safe = x => esc(String(x));
-  w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + safe(title) + '</title><style>body{font-family:Arial,sans-serif;color:#173025;padding:40px;line-height:1.6}h1{color:#326d31}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #ddd;text-align:left;padding:10px}small{color:#555}button{margin-top:20px;padding:10px}@media print{button{display:none}}</style></head><body><h1>BioVolt · ' + safe(title) + '</h1><small>Documento generado: ' + safe(new Date().toLocaleString('es-CO')) + ' · ' + (liveDataLoaded ? 'Datos de TiDB' : 'Datos demostrativos') + '</small>' + content + '<p><small>Proyecto académico BioVolt. Los resultados no representan certificación técnica ni financiera.</small></p><button onclick="window.print()">Imprimir / Guardar como PDF</button></body></html>');
-  w.document.close(); w.focus();
-}
-$('#printEnergy').addEventListener('click', () => {
-  if (!liveDataLoaded || !filteredEnergySeries().length) { toast('Necesitas datos de TiDB para generar el informe energético'); return; }
-  const rows = filteredEnergySeries();
-  const total = rows.reduce((n,r) => n + (Number(r.kwh)||0), 0);
-  const body = '<p>Fechas incluidas: ' + rows.length + ' · Total: <strong>' + nf.format(total) + ' kWh</strong></p><table><thead><tr><th>Fecha</th><th>Energía (kWh)</th></tr></thead><tbody>' + rows.map(r => '<tr><td>' + esc(r.fecha) + '</td><td>' + nf.format(r.kwh) + '</td></tr>').join('') + '</tbody></table>';
-  printBioVoltReport('Reporte energético', body);
-});
 function renderAnalytics(){
-  renderEnergyTrend();
   const S = DB.stats;
   const open = tickets.filter(t => t.status !== 'Resuelto').length;
   const items = [
-    ['Inventario', (liveDataLoaded ? 'TiDB contiene ' : 'La demostración contiene ') +  + nf.format(S.inventory) + ' registros de inventario asociados a biomasa y almacenes.'],
-    ['Operación', (liveDataLoaded ? 'Se identifican ' : 'La demostración incluye ') +  + S.plants + ' plantas; ' + DB.plants.filter(p => p.estado !== 'Operativa').length + ' figuran en mantenimiento (' + DB.plants.filter(p => p.estado !== 'Operativa').map(p => p.nombre.replace('Planta ', '')).join(' y ') + '). Revísalas antes de programar producción.'],
+    ['Inventario', 'El respaldo contiene ' + nf.format(S.inventory) + ' registros de inventario asociados a biomasa y almacenes.'],
+    ['Operación', 'Se identifican ' + S.plants + ' plantas; ' + DB.plants.filter(p => p.estado !== 'Operativa').length + ' figuran en mantenimiento (' + DB.plants.filter(p => p.estado !== 'Operativa').map(p => p.nombre.replace('Planta ', '')).join(' y ') + '). Revísalas antes de programar producción.'],
     ['Impacto ambiental', 'Los registros suman ' + nf.format(S.co2) + ' toneladas de CO₂ evitado y ' + nf.format(S.waste) + ' toneladas de residuos procesadas.'],
-    ['Calidad de datos', 'Las cifras energéticas se convierten a kWh antes de agregarse. Solo se incluyen registros en kWh o MWh.'],
-    ['Mesa de ayuda', 'En los tickets visibles hay ' + open + ' solicitud' + (open === 1 ? '' : 'es') + ' sin resolver de ' + tickets.length + ' registradas. El agente IA respondió ' + tickets.filter(x => x.ai && x.ai.respuesta).length + '.']
+    ['Calidad de datos', 'La tabla de producción declara unidades en cada registro (kWh y MWh). Conviene normalizarlas antes de comparar o proyectar volúmenes.'],
+    ['Mesa de ayuda', 'Hay ' + open + ' solicitud' + (open === 1 ? '' : 'es') + ' sin resolver de ' + tickets.length + ' registradas. El agente IA respondió ' + tickets.filter(x => x.ai && x.ai.respuesta).length + '.']
   ];
   $('#insightList').innerHTML = items.map(x => `<div class="metric-tile"><p class="eyebrow">${esc(x[0])}</p><p style="font-size:15px;margin-top:4px">${esc(x[1])}</p></div>`).join('');
   $('#capacityList').innerHTML = DB.plants.map(p =>
@@ -1514,7 +1431,7 @@ function renderAnalytics(){
 }
 
 /* =====================================================================
-   F. MESA DE AYUDA (tickets persistentes en TiDB)
+   F. MESA DE AYUDA (persistencia en localStorage)
    ===================================================================== */
 const TKEY = 'bvTickets_v2';
 const STATUSES = ['Abierto', 'En proceso', 'Resuelto'];
@@ -1531,7 +1448,7 @@ function loadTickets(){
   try { const a = JSON.parse(store.get(TKEY)); if (Array.isArray(a)) return a; } catch (e) {}
   return seedTickets();
 }
-let tickets = [];                 // solo tickets de esta sesión; historial con clave docente
+let tickets = [];                 // se cargan desde la base de datos (GET /api/tickets)
 const saveTickets = () => {};     // ya no se guarda en el navegador
 const tState = { q:'', status:'Todos', prio:'' };
 
@@ -1610,28 +1527,17 @@ function aiBlock(t){
 }
 /* --- Solicitudes en la base de datos (/api/tickets) --- */
 const TAPI = '/api/tickets';
-let adminPinCache = null;  // solo en memoria
 async function loadRemote(silent){
-  if (!adminPinCache) { renderTickets(); renderAnalytics(); return; }
   try {
-    const res = await fetch(TAPI, { headers: { Accept:'application/json', 'x-admin-pin': adminPinCache }, cache:'no-store' });
+    const res = await fetch(TAPI, { headers: { Accept: 'application/json' } });
     const d = await res.json().catch(() => ({}));
-    if (res.status === 403) { adminPinCache = null; throw new Error(d.error || 'Clave incorrecta'); }
     if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    const local = new Map(tickets.map(t => [t.id, t]));
-    tickets = d.tickets.map(x => ({...x, accessToken:local.get(x.id)?.accessToken,
-      ai:local.get(x.id)?.ai?.pending ? {pending:true} : x.ai}));
-    $('#ticketAccessMessage').textContent = 'Historial cargado con acceso docente.';
-  } catch (err) {
-    console.error('No se pudieron cargar las solicitudes:', err);
-    if (!silent) toast(err.message || 'No se pudo cargar el historial');
-  }
+    const pend = new Set(tickets.filter(x => x.ai && x.ai.pending).map(x => x.id));
+    tickets = d.tickets.map(x => pend.has(x.id) ? Object.assign(x, { ai: { pending: true } }) : x);
+  } catch (err) { console.error('No se pudieron cargar las solicitudes:', err); if (!silent) toast('No se pudieron cargar las solicitudes'); }
   renderTickets(); renderAnalytics();
 }
-$('#loadAdminTickets').addEventListener('click', () => {
-  adminPinCache = prompt('Clave de docente para consultar el historial:');
-  if (adminPinCache) loadRemote(false);
-});
+let adminPinCache = null;   // la clave de docente solo se guarda en memoria
 async function adminCall(method, t, body){
   if (!adminPinCache) adminPinCache = prompt('Clave de docente para esta acción:');
   if (!adminPinCache) return false;
@@ -1646,17 +1552,8 @@ async function adminCall(method, t, body){
 async function askAgent(t){
   t.ai = { pending: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
   try {
-    if (!t.accessToken && !adminPinCache) {
-      adminPinCache = prompt('Para volver a consultar este ticket, introduce la clave de docente:');
-      if (!adminPinCache) { t.ai = null; renderTickets(); if (currentId === t.id) renderDialog(t); return; }
-    }
-    const res = await fetch('/api/agente', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', ...(adminPinCache ? {'x-admin-pin':adminPinCache} : {}) },
-      body: JSON.stringify({ id:t.id, accessToken:t.accessToken })
-    });
+    const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) });
     const d = await res.json().catch(() => ({}));
-    if (res.status === 403) { t.accessToken = null; adminPinCache = null; }
     if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
     Object.assign(t, d.ticket);
     toast(t.id + (t.status === 'Resuelto' ? ' resuelta por el agente IA' : ' revisada por el agente IA'));
@@ -1676,7 +1573,7 @@ form.addEventListener('submit', async e => {
       category: fieldOf('category').value, priority: fieldOf('priority').value, description: fieldOf('description').value }) });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    const t = {...d.ticket, accessToken: d.accessToken}; tickets.unshift(t);
+    const t = d.ticket; tickets.unshift(t);
     form.reset(); $('#tDescCount').textContent = '0/500';
     $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
     $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
@@ -1702,7 +1599,6 @@ function renderDialog(t){
     </dl>
     <div><p class="field-label" style="margin-bottom:6px">Descripción</p><div class="desc-box">${esc(t.description)}</div></div>
     ${aiBlock(t)}
-    ${adminPinCache ? `<div class="metric-tile"><p class="field-label" style="margin-bottom:8px">Seguimiento del docente</p><div id="ticketFollowup" class="stack"><p class="small muted">Cargando notas…</p></div><form id="followupForm" class="stack" style="margin-top:12px"><label class="field-label" for="followupOwner">Responsable asignado</label><input id="followupOwner" class="input" maxlength="80" placeholder="Docente o técnico (opcional)"><label class="field-label" for="followupNote">Comentario interno</label><textarea id="followupNote" class="input" maxlength="500" rows="3" required placeholder="Actualización y pasos realizados"></textarea><button class="btn btn-outline btn-sm" type="submit">Guardar seguimiento</button></form></div>` : ''}
     <div><p class="field-label" id="stLabel" style="margin-bottom:8px">Cambiar estado</p>
       <div class="seg-group" role="group" aria-labelledby="stLabel">${STATUSES.map(s => `<button type="button" class="seg${s === t.status ? ' on' : ''}" data-status="${s}" aria-pressed="${s === t.status}">${s}</button>`).join('')}</div></div>
     <div class="dlg-actions"><button class="btn btn-danger btn-sm" type="button" data-del>${icon('trash', 16)}Eliminar</button><button class="btn btn-outline btn-sm" type="button" data-close>Cerrar</button></div>
@@ -1712,29 +1608,7 @@ function openTicket(id){
   const t = tickets.find(x => x.id === id); if (!t) return;
   currentId = id; renderDialog(t);
   if (!dlg.open) dlg.showModal();
-  loadFollowup(id);
 }
-async function loadFollowup(id){
-  const target=$('#ticketFollowup'); if (!target || !adminPinCache) return;
-  try {
-    const resp=await fetch('/api/seguimiento?id='+encodeURIComponent(String(id).replace(/\D/g,'')),{headers:{'x-admin-pin':adminPinCache}});
-    const data=await resp.json().catch(()=>({}));
-    if(!resp.ok) throw new Error(data.error||'No se pudo consultar el seguimiento');
-    if(currentId!==id)return;
-    target.innerHTML=(data.seguimiento||[]).length ? data.seguimiento.map(a=>`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><p class="small muted">${esc(a.responsable||'Sin asignar')} · ${esc(fmtDate(a.fecha))}</p><p>${esc(a.nota)}</p></div>`).join('') : '<p class="small muted">Aún no hay comentarios internos.</p>';
-  }catch(e){target.textContent=e.message;}
-}
-dlgBody.addEventListener('submit',async e=>{
-  if(e.target?.id!=='followupForm')return;
-  e.preventDefault();const id=currentId;
-  if(!adminPinCache || !id)return;
-  const btn=e.target.querySelector('button');btn.disabled=true;
-  try{
-    const r=await fetch('/api/seguimiento?id='+encodeURIComponent(String(id).replace(/\D/g,'')),{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':adminPinCache},body:JSON.stringify({responsable:$('#followupOwner').value,nota:$('#followupNote').value})});
-    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo guardar');
-    $('#followupNote').value='';toast('Seguimiento guardado en TiDB');await loadFollowup(id);
-  }catch(err){toast(err.message||'Error de seguimiento');}finally{btn.disabled=false;}
-});
 $('#ticketList').addEventListener('click', e => { const b = e.target.closest('.ticket'); if (b) openTicket(b.dataset.id); });
 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
 dlg.addEventListener('close', () => { currentId = null; clearTimeout(delTimer); });
@@ -1745,7 +1619,7 @@ dlgBody.addEventListener('click', e => {
   const sb = e.target.closest('[data-status]');
   if (sb) {
     if (t.status !== sb.dataset.status) {
-      adminCall('PATCH', t, { estado: sb.dataset.status }).then(d => { if (d) { t.status = d.ticket.status; renderTickets(); renderAnalytics(); renderDialog(t); loadFollowup(t.id); toast(t.id + ' → ' + t.status); } });
+      adminCall('PATCH', t, { estado: sb.dataset.status }).then(d => { if (d) { t.status = d.ticket.status; renderTickets(); renderAnalytics(); renderDialog(t); toast(t.id + ' → ' + t.status); } });
     }
     const again = dlgBody.querySelector('[data-status="' + t.status + '"]'); if (again) again.focus();
     return;
@@ -1776,7 +1650,7 @@ const KB = [
   { keys:['planta','capacidad','instalacion'], answer:() => { const ok = DB.plants.filter(p => p.estado === 'Operativa').length; return 'BioVolt tiene ' + DB.stats.plants + ' plantas registradas: ' + ok + ' operativas y ' + (DB.plants.length - ok) + ' en mantenimiento. La de mayor capacidad es ' + DB.plants.reduce((a, b) => +b.capacidad > +a.capacidad ? b : a).nombre + '. Puedes ver el detalle en la sección Plantas.'; } },
   { keys:['biomasa','residuo','bagazo','cascarilla','material'], answer:() => 'En la muestra hay biomasa como ' + DB.biomass.slice(0, 5).map(b => b.nombre.replace(/ \d+$/, '').toLowerCase()).join(', ') + ' y más. La base contiene ' + nf.format(DB.stats.biomass) + ' registros de biomasa, además de tablas de calidad y pruebas de eficiencia. Consúltalos en Inventario.' },
   { keys:['inventario','stock','almacen','existencia'], answer:() => 'El respaldo incluye ' + nf.format(DB.stats.inventory) + ' registros de inventario. En la sección Inventario puedes buscar materiales y comparar el stock disponible contra la cantidad registrada.' },
-  { keys:['produccion','energia','kwh','mwh','generacion'], answer:() => 'La base tiene ' + nf.format(DB.stats.production) + ' registros de producción. Energía normalizada: ' + nf.format(DB.stats.energy) + ' kWh.' },
+  { keys:['produccion','energia','kwh','mwh','generacion'], answer:() => 'La base tiene ' + nf.format(DB.stats.production) + ' registros de producción de energía, con un total de ' + nf.format(DB.stats.energy) + ' (cantidad sumada). Ojo: los registros mezclan kWh y MWh, así que conviene normalizar las unidades antes de comparar.' },
   { keys:['cliente','comprador'], answer:() => 'BioVolt tiene ' + nf.format(DB.stats.clients) + ' clientes registrados. Puedes buscarlos por nombre en el Directorio.' },
   { keys:['proveedor','abastecimiento','suministro'], answer:() => 'Hay ' + nf.format(DB.stats.providers) + ' proveedores registrados (por ejemplo, ' + DB.providers.slice(0, 3).map(p => p.nombre).join(', ') + '). Los encuentras en el Directorio.' },
   { keys:['factura','pago','facturacion'], answer:() => 'El respaldo contiene ' + nf.format(DB.stats.invoices) + ' facturas registradas, junto con detalles y métodos de pago.' },
@@ -1821,10 +1695,10 @@ async function getAIResponse(userMessage, history){
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     if (!data.reply) throw new Error('La función no devolvió una respuesta.');
-    return { text: data.reply, fallback: false };
+    return data.reply;
   } catch (err) {
     console.error('IA no disponible, usando base local:', err);
-    return { text: 'IA temporalmente no disponible. Respuesta orientativa de la guía local:\n' + localAnswer(userMessage), fallback: true };
+    return localAnswer(userMessage);
   }
 }
 
@@ -1851,8 +1725,7 @@ async function sendMessage(text){
   addMsg('user', text); history.push({ role:'user', content:text }); showTyping();
   try {
     const answer = await getAIResponse(text, history);
-    hideTyping(); addMsg('assistant', answer.text, answer.fallback);
-    if (!answer.fallback) history.push({ role:'assistant', content:answer.text });
+    hideTyping(); addMsg('assistant', answer); history.push({ role:'assistant', content:answer });
   } catch (err) {
     hideTyping(); addMsg('assistant', 'No pude responder en este momento. Inténtalo de nuevo en unos segundos.', true);
   } finally {
@@ -1899,8 +1772,6 @@ async function loadLive(){
     const d = await res.json();
     if (!d.stats || !Array.isArray(d.plants) || !d.plants.length) throw new Error('Respuesta incompleta');
     DB.stats = Object.assign({}, DB.stats, d.stats);
-    liveDataLoaded = true;
-    liveEnergySeries = Array.isArray(d.energySeries) ? d.energySeries : [];
     DB.plants = d.plants;
     if (d.productionRows && d.productionRows.length) DB.productionRows = d.productionRows;
     if (d.biomass && d.biomass.length) DB.biomass = d.biomass;
@@ -1910,46 +1781,22 @@ async function loadLive(){
     $('#plantCount').textContent = DB.plants.length + ' plantas';
     $('#plantList').innerHTML = DB.plants.slice(0, 6).map(plantRow).join('');
     renderOperations(); renderInventory($('#invSearch').value); renderPlants(); renderAnalytics();
-    $('#operationsSource').textContent = 'TiDB en vivo';
     setStatus('Plataforma de gestión sostenible · Datos en vivo');
   } catch (err) {
     console.error('No se pudieron cargar los datos en vivo; se muestran datos de muestra:', err);
-    $('#operationsSource').textContent = 'Demostración';
     setStatus('Plataforma de gestión sostenible · Mostrando datos de muestra');
   }
 }
 loadLive();
-// No se solicita el historial público; el docente puede autenticarse desde Mesa de ayuda.
+loadRemote(true);
 setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ayuda') loadRemote(true); }, 20000);
-
-
-/* Simulación ilustrativa: jamás registra ni altera tablas de TiDB */
-function simValues(){
-  const num = (id, max) => { const n = Number($(id).value); return Number.isFinite(n) ? Math.min(max, Math.max(0,n)) : 0; };
-  const tons = num('#simTons',100000), potential = num('#simPotential',10000), efficiency = num('#simEfficiency',80) / 100, price = num('#simPrice',10000);
-  return { tons, potential, efficiency, price, kwh:tons*potential*efficiency };
-}
-function renderSim(){
-  const v=simValues(); $('#simEffLabel').textContent=(v.efficiency*100).toFixed(0)+' %';
-  $('#simResult').textContent=nf.format(v.kwh)+' kWh';
-  $('#simMwh').textContent=nf2.format(v.kwh/1000)+' MWh';
-  $('#simRevenue').textContent=new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v.kwh*v.price);
-  $('#simFormula').textContent='Fórmula: '+nf.format(v.tons)+' t × '+nf.format(v.potential)+' kWh/t × '+(v.efficiency*100).toFixed(0)+' % = '+nf.format(v.kwh)+' kWh.';
-}
-['#simTons','#simPotential','#simEfficiency','#simPrice'].forEach(id=>$(id).addEventListener('input', renderSim));
-$('#simReset').addEventListener('click',()=>{ [['#simTons','10'],['#simPotential','1200'],['#simEfficiency','30'],['#simPrice','500']].forEach(([id,v])=>$(id).value=v);renderSim(); });
-$('#simPrint').addEventListener('click',()=>{
-  const v=simValues();
-  printBioVoltReport('Simulación energética', '<p>Escenario educativo, <strong>no es una predicción de producción real</strong>.</p><table><tbody><tr><th>Biomasa</th><td>'+v.tons+' toneladas</td></tr><tr><th>Potencial supuesto</th><td>'+v.potential+' kWh/t</td></tr><tr><th>Eficiencia neta</th><td>'+(v.efficiency*100).toFixed(0)+' %</td></tr><tr><th>Generación estimada</th><td>'+nf.format(v.kwh)+' kWh</td></tr><tr><th>Valor ilustrativo</th><td>'+nf.format(v.kwh*v.price)+' COP</td></tr></tbody></table>');
-});
-renderSim();
 
 /* =====================================================================
    I. DIRECCIÓN DE ARTE (solo presentación; no toca datos ni textos)
    ===================================================================== */
 (function () {
   const root = document.documentElement;
-  const rm = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rm = () => false;
 
   /* 1) Entrada de la portada. Sin JS o con "reducir movimiento" todo se ve completo de inmediato. */
   if (rm()) root.classList.add('bv-done');
@@ -2032,7 +1879,7 @@ renderSim();
       panel vivo, paralaje). Solo presentación.
    ===================================================================== */
 (function () {
-  const rm = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rm = () => false;
   const canHover = () => !!(window.matchMedia && matchMedia('(hover: hover)').matches);
 
   /* 1) Gesto propio por sección: ilustraciones animadas, decorativas */
@@ -2141,25 +1988,6 @@ renderSim();
     });
   }
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
-  // Progreso de lectura del documento + parallax sutil según visibilidad.
-  const progress = document.getElementById('bvScrollProgress');
-  const cinematic = [...document.querySelectorAll('.hero .display, .hero .lead, .view-head .h-lg, #modulos .section-head')];
-  cinematic.forEach(el => el.setAttribute('data-cinema', ''));
-  let pRaf = 0;
-  const updateCinema = () => { if (pRaf) return; pRaf = requestAnimationFrame(() => {
-    pRaf=0; if (rm()) { progress.style.width='0'; cinematic.forEach(el=>el.style.removeProperty('--cinema-offset')); return; }
-    const y=window.scrollY||0, h=Math.max(1,document.documentElement.scrollHeight-innerHeight);
-    progress.style.width=(Math.min(100,Math.max(0,y/h*100))).toFixed(2)+'%';
-    cinematic.forEach(el=>{
-      if (el.closest('.view[hidden]')) return;
-      const rect=el.getBoundingClientRect();
-      if(rect.bottom < -50 || rect.top > innerHeight+50) return;
-      const center=(rect.top+rect.height/2-innerHeight/2)/Math.max(innerHeight,1);
-      el.style.setProperty('--cinema-offset', (Math.max(-8,Math.min(8,-center*10))).toFixed(1)+'px');
-    });
-  }); };
-  window.addEventListener('scroll',updateCinema,{passive:true}); window.addEventListener('resize',updateCinema,{passive:true});
-  window.addEventListener('hashchange',()=>requestAnimationFrame(updateCinema)); updateCinema();
 })();
 
 </script>
