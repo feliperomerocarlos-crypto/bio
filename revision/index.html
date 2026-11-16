@@ -8,13 +8,72 @@
 <meta name="description" content="BioVolt AI: prototipo de plataforma de gestión sostenible con asistente de IA y mesa de ayuda.">
 <title>BioVolt AI · Plataforma de gestión sostenible</title>
 <script>
-document.addEventListener('click', function (event) {
- var anchor = event.target.closest && event.target.closest('a[href^="#/"]');
- if (anchor) { event.preventDefault(); location.hash = anchor.getAttribute('href'); }
-}, true);
-window.bioPreviewOffline = async function () {
- return { ok: false, status: 503, json: async function () { return { error: 'Vista previa sin conexión a las API.' }; } };
-};
+// Adaptador SOLO de la copia de revisión. No se copia a dist ni envía información a la red.
+(function(){
+  const tickets=new Map(),threads=new Map(),notes=new Map(),keys=new Map();let next=1;
+  const staff=['José Montalvo','Cristopher Orozco','Carlos Romero'];
+  const reply=(status,data)=>Promise.resolve(new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}}));
+  const token=id=>'DEMO-PRIVADO-'+id,number=id=>Number(String(id||'').replace(/^BV-/,''));
+  function message(t,role,text,name=''){const list=threads.get(t.id)||[];list.push({id:String(Date.now())+'-'+list.length,role,text,name,source:role==='agente'?'demo':role==='responsable'?'humano':role==='solicitante'?'usuario':'sistema',at:Date.now(),tools:[],sources:[]});threads.set(t.id,list);t.updatedAt=Date.now();}
+  function respond(t){
+    t.status='En proceso';t.waitingFor=t.ai.escalar?'persona':'solicitante';
+    t.ai={...t.ai,status:t.ai.escalar?'escalado':'respondido',source:'demo',processedVersion:t.version,at:Date.now(),attempts:1,canRetry:false,respuesta:'Demostración local de una respuesta del agente. En la versión conectada, Gemini analizará la solicitud con sus herramientas y el historial. Puedes responder, confirmar la solución o indicar que el problema continúa.'};
+    message(t,'agente',t.ai.respuesta);return t;
+  }
+  window.bioPreviewOffline=async function(path,options={}){
+    const url=new URL(path,'https://preview.invalid'),method=options.method||'GET',h=new Headers(options.headers||{});
+    const admin=h.get('x-admin-pin')==='DEMO';let body={};try{body=JSON.parse(options.body||'{}');}catch{}
+    const id=number(body.id||url.searchParams.get('id')),code=h.get('authorization')?.replace(/^Bearer /,'');
+    const allowed=t=>admin||code===token(number(t.id));
+    if(url.pathname==='/api/tickets'){
+      if(method==='GET'){
+        if(id){const t=tickets.get('BV-'+id);if(!t)return reply(404,{error:'Solicitud de demostración no encontrada.'});if(!allowed(t))return reply(403,{error:'Código de demostración inválido.'});return reply(200,{ticket:t,messages:threads.get(t.id)||[],before:null});}
+        if(admin){
+          let rows=[...tickets.values()];const filters={status:'status',priority:'priority',category:'category',assignee:'assignee'};
+          for(const [param,field] of Object.entries(filters))if(url.searchParams.get(param))rows=rows.filter(t=>t[field]===url.searchParams.get(param));
+          const search=url.searchParams.get('q');if(search)rows=rows.filter(t=>(t.id+' '+t.subject+' '+t.name).toLowerCase().includes(search.toLowerCase()));
+          if(url.searchParams.get('escalated')==='1')rows=rows.filter(t=>t.ai.escalar);if(url.searchParams.get('unassigned')==='1')rows=rows.filter(t=>!t.assignee);
+          if(url.searchParams.get('ai'))rows=rows.filter(t=>t.ai.status===url.searchParams.get('ai'));
+          const stats={total:rows.length,abiertos:rows.filter(t=>t.status==='Abierto').length,proceso:rows.filter(t=>t.status==='En proceso').length,resueltos:rows.filter(t=>t.status==='Resuelto').length,escaladas:rows.filter(t=>t.ai.escalar&&t.status!=='Resuelto').length,sin_asignar:rows.filter(t=>!t.assignee&&t.status!=='Resuelto').length};
+          const page=Number(url.searchParams.get('page')||1);return reply(200,{tickets:rows.slice((page-1)*20,page*20),stats,page,pages:Math.max(1,Math.ceil(rows.length/20)),scope:'docente',responsables:staff});
+        }
+        const row=[...tickets.values()].find(allowed);return row?reply(200,{tickets:[row],scope:'propietario'}):reply(403,{error:'Introduce un código privado de esta demostración.'});
+      }
+      if(method==='POST'&&body.action==='recover')return reply(202,{message:'Demostración: no se envió ningún correo. Para probar la recuperación usa el código 123456 con una solicitud creada aquí.'});
+      if(method==='POST'&&body.action==='verify'){const t=tickets.get('BV-'+id);return t&&t._email===body.email&&body.code==='123456'?reply(200,{accessToken:token(id)}):reply(400,{error:'Datos de demostración incorrectos.'});}
+      if(method==='POST'&&!body.action){
+        const k=h.get('x-idempotency-key');if(keys.has(k)){const t=tickets.get(keys.get(k));return reply(200,{ticket:t,accessToken:token(number(t.id))});}
+        const t={id:'BV-'+next++,subject:body.subject,name:body.name,_email:body.email,email:'Oculto por privacidad',description:body.description,category:body.category,priority:body.priority,status:'Abierto',createdAt:Date.now(),updatedAt:Date.now(),assignee:'',waitingFor:'agente',version:1,ai:{status:'pendiente',escalar:false,herramientas:[]}};
+        tickets.set(t.id,t);keys.set(k,t.id);message(t,'solicitante',t.description);respond(t);return reply(201,{ticket:t,accessToken:token(number(t.id))});
+      }
+      const t=tickets.get('BV-'+id);if(!t||!allowed(t))return reply(403,{error:'Acceso de demostración no válido.'});
+      if(body.action==='message'){
+        if(admin&&!t.assignee)return reply(400,{error:'Asigna un responsable primero.'});
+        message(t,admin?'responsable':'solicitante',body.message,admin?t.assignee:'');if(!admin){t.version++;respond(t);}
+      }else if(body.action==='feedback'){
+        if(body.value==='helpful'){t.status='Resuelto';t.waitingFor='nadie';message(t,'sistema','El solicitante confirmó la solución en esta demostración.');}
+        else{t.version++;t.ai.escalar=true;t.ai.motivo='El solicitante indicó que el problema continúa.';message(t,'solicitante','Sigo con el problema.');respond(t);}
+      }else if(method==='PATCH'&&admin){
+        if(body.action==='assign'){if(body.assignee&&!staff.includes(body.assignee))return reply(400,{error:'Responsable inválido.'});t.assignee=body.assignee;message(t,'sistema','Responsable asignado: '+t.assignee);}
+        else{t.status=body.estado;t.waitingFor=t.status==='Resuelto'?'nadie':'persona';message(t,'sistema','Cambio de estado verificado en la demostración.');}
+      }else if(method==='DELETE'&&admin){tickets.delete(t.id);return reply(200,{ok:true});}
+      return reply(200,{ticket:t});
+    }
+    if(url.pathname==='/api/agente'){const t=tickets.get('BV-'+id);return t&&allowed(t)?reply(200,{ticket:respond(t)}):reply(403,{error:'Acceso de demostración no válido.'});}
+    if(url.pathname==='/api/seguimiento'){
+      if(!admin)return reply(403,{error:'Solo acceso docente de demostración.'});
+      const id=number(url.searchParams.get('id')),list=notes.get(id)||[];
+      if(method==='POST'){list.unshift({responsable:body.responsable,nota:body.nota,fecha:Date.now()});notes.set(id,list);return reply(201,{ok:true});}
+      return reply(200,{seguimiento:list});
+    }
+    return reply(503,{error:'Vista de revisión: servicio externo desconectado.'});
+  };
+  document.addEventListener('click',event=>{const a=event.target.closest?.('a[href^="#/"]');if(a){event.preventDefault();location.hash=a.getAttribute('href');}},true);
+  document.addEventListener('DOMContentLoaded',()=>{
+    const notice=document.createElement('div');notice.className='notice';notice.textContent='REVISIÓN LOCAL: datos y respuestas del agente simulados. No se usa Gemini ni se envían correos. Puedes crear tickets de prueba. Acceso docente de demostración: DEMO. Los tickets se pierden al recargar.';document.querySelector('#view-ayuda .view-head').after(notice);
+  });
+})();
+
 </script>
 <script>
 /* Tema: se resuelve ANTES de pintar para evitar parpadeo.
@@ -820,6 +879,30 @@ details>summary{cursor:pointer;color:var(--accent-text);min-height:36px}
 .hero{overflow:clip}
 
 </style>
+<style>
+#view-ayuda .access-panel{gap:12px}
+#view-ayuda #queueFilters{align-items:flex-end}
+#view-ayuda #queueFilters>label{min-width:140px;flex:1}
+#view-ayuda #queueFilters .input,#view-ayuda #queueFilters .select{display:block;width:100%;margin-top:4px}
+#view-ayuda #ticketStats .card{padding:16px}
+#view-ayuda .ticket-pills{max-width:280px;white-space:normal}
+#view-ayuda .ticket-pills .pill{white-space:normal}
+#view-ayuda #ticketPagination{justify-content:space-between}
+#ticketDialog{width:min(760px,calc(100% - 24px))}
+#ticketDialog .dlg{overflow-wrap:anywhere}
+#ticketDialog .hd-thread{display:grid;gap:12px;margin-top:16px}
+#ticketDialog .hd-message{padding:16px;border-radius:var(--radius-field);background:var(--field-bg);border-left:3px solid var(--outline)}
+#ticketDialog .hd-agente{border-left-color:var(--accent-text)}
+#ticketDialog .hd-responsable{border-left-color:var(--tertiary)}
+#ticketDialog .hd-sistema{font-size:14px;color:var(--on-surface-variant);background:var(--info-bg)}
+#ticketDialog .hd-message-text{white-space:pre-wrap;margin:8px 0;overflow-wrap:anywhere}
+#ticketDialog .hd-feedback{padding:16px;border-radius:var(--radius-field);background:var(--info-bg)}
+#ticketDialog .hd-processing::before{content:'';display:inline-block;width:8px;height:8px;margin-right:8px;border-radius:50%;background:var(--accent-text);animation:blink 1s infinite}
+#teacherDialog .dlg{width:100%}
+@media(max-width:733px){#view-ayuda .ticket-pills{max-width:100%}#ticketDialog .toolbar .btn{white-space:normal;max-width:100%}}
+#ticketDialog .hd-thread{padding:0;list-style:none}
+
+</style>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2304090C'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23A4E636'/%3E%3Cstop offset='1' stop-color='%234CBF35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(-6 -4) scale(.2)'%3E%3Cpath d='M100 38C150 42 170 94 142 132c-22 26-58 20-70-12C58 82 74 46 100 38Z' fill='url(%23g)'/%3E%3Cpath d='M114 100 92 136h16l-8 32 34-46h-17l12-22z' fill='%2304090C' stroke='%2304090C' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 </head>
 <body>
@@ -1037,7 +1120,7 @@ details>summary{cursor:pointer;color:var(--accent-text);min-height:36px}
       <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
       <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
     </div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en TiDB y se consultan con un código privado o acceso docente. Un agente de IA revisa cada una, consulta los datos de BioVolt y responde en pantalla.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en TiDB y se consultan con un código privado o acceso docente. El agente de IA inicia la atención automáticamente, consulta sus herramientas y responde. Si necesita intervención humana, deja el caso escalado y con su motivo.</span></div>
     <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:var(--lg)" id="ticketStats"></div>
     <div class="help-layout">
       <section aria-label="Listado de solicitudes">
@@ -1066,7 +1149,7 @@ details>summary{cursor:pointer;color:var(--accent-text);min-height:36px}
           <div class="field"><label for="tDescription">Descripción</label><textarea class="textarea" id="tDescription" name="description" maxlength="500" required aria-describedby="tDescription-err tDescCount" placeholder="Cuéntanos qué ocurrió…"></textarea><p class="err" id="tDescription-err" hidden></p><span class="small counter" id="tDescCount">0/500</span></div>
           <button class="btn btn-primary btn-block" type="submit">Enviar solicitud</button>
         </form>
-        <p class="small muted mt">Conserva el código privado que recibirás: permite consultar esta solicitud desde otro equipo. Tu correo se guarda, pero no se muestra a otras personas.</p>
+        <p class="small muted mt">Conserva el código privado para consultar el historial desde otro equipo. Si lo pierdes, podrás verificar el correo registrado cuando el envío de recuperación esté configurado. Tu correo se guarda, pero no se muestra a otras personas.</p>
       </aside>
     </div>
   </div>
@@ -1505,231 +1588,15 @@ function renderAnalytics(){
     `<div class="plant-row"><span class="plant-name">${esc(p.nombre.replace('Planta ', ''))}</span><span class="small muted">${nf2.format(p.capacidad)}</span><div class="track" role="img" aria-label="${esc(p.nombre)}: ${nf2.format(p.capacidad)}"><span style="width:${(+p.capacidad / maxCap * 100).toFixed(0)}%"></span></div></div>`).join('');
 }
 
-/* =====================================================================
-   F. MESA DE AYUDA (persistencia en localStorage)
-   ===================================================================== */
-const TKEY = 'bvTickets_v2';
-const STATUSES = ['Abierto', 'En proceso', 'Resuelto'];
-const hoursAgo = h => Date.now() - h * 3600000;
-const seedTickets = () => [
-  { id:'BV-2041', subject:'No se actualiza el inventario de biomasa', name:'Equipo de Inventario', email:'inventario@biovolt.demo', category:'Inventario', priority:'Alta', status:'En proceso',
-    description:'Después del último cierre, las cantidades de biomasa no se reflejan en el módulo de inventario. Ocurre en varios almacenes.', createdAt:hoursAgo(3) },
-  { id:'BV-2040', subject:'Solicitud de acceso al panel operativo', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Sistemas', priority:'Media', status:'Abierto',
-    description:'Necesito acceso de lectura al panel de operaciones para revisar la producción semanal.', createdAt:hoursAgo(5) },
-  { id:'BV-2039', subject:'Error al generar reporte de producción', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Producción', priority:'Baja', status:'Resuelto',
-    description:'El reporte mensual se quedaba cargando al exportar. Se resolvió reiniciando el servicio de reportes.', createdAt:hoursAgo(30) }
-];
-function loadTickets(){
-  try { const a = JSON.parse(store.get(TKEY)); if (Array.isArray(a)) return a; } catch (e) {}
-  return seedTickets();
-}
-let tickets = [];                 // se cargan desde la base de datos (GET /api/tickets)
-const saveTickets = () => {};     // ya no se guarda en el navegador
-const tState = { q:'', status:'Todos', prio:'', category:'', from:'', to:'', escalated:false };
-
-function renderTicketStats(){
-  const c = s => tickets.filter(t => t.status === s).length;
-  $('#ticketStats').innerHTML = STATUSES.map(s => `<div class="card" style="padding:16px 18px"><p class="small muted">${s}${s === 'Abierto' ? 's' : s === 'Resuelto' ? 's' : 's'}</p><div class="stat-value" style="margin:4px 0 0;font-size:30px">${c(s)}</div></div>`).join('');
-}
-function renderTickets(){
-  renderTicketStats();
-  $('#statusFilters').innerHTML = ['Todos', ...STATUSES].map(s => `<button class="chip" type="button" data-s="${s}" aria-pressed="${tState.status === s}">${s}</button>`).join('');
-  const q = norm(tState.q.trim());
-  const arr = tickets.filter(t =>
-    (tState.status === 'Todos' || t.status === tState.status) &&
-    (!tState.prio || t.priority === tState.prio) &&
-    (!tState.category || t.category === tState.category) &&
-    (!tState.escalated || t.ai?.escalar) &&
-    (!tState.from || t.createdAt >= Date.parse(tState.from + 'T00:00:00')) &&
-    (!tState.to || t.createdAt <= Date.parse(tState.to + 'T23:59:59.999')) &&
-    (!q || norm([t.id, t.subject, t.name, t.category].join(' ')).includes(q))
-  ).sort((a, b) => b.createdAt - a.createdAt);
-  $('#ticketCount').textContent = arr.length + ' de ' + tickets.length + (tickets.length === 1 ? ' solicitud' : ' solicitudes');
-  const list = $('#ticketList'), empty = $('#ticketEmpty');
-  list.innerHTML = arr.map(t =>
-    `<button type="button" class="card ticket" data-id="${esc(t.id)}" aria-label="Ver detalle de ${esc(t.id)}: ${esc(t.subject)}">
-       <span class="ticket-main"><span class="ticket-title">${esc(t.subject)}</span><span class="small muted">${esc(t.id)} · ${esc(t.category)} · ${esc(t.name)} · ${esc(fmtDate(t.createdAt))}</span></span>
-       <span class="ticket-pills">${prioPill(t.priority)}${statusPill(t.status)}${aiPill(t)}</span></button>`).join('');
-  if (arr.length) empty.hidden = true;
-  else if (!tickets.length) emptyState(empty, 'inbox', 'Aún no hay solicitudes', 'Cuando registres la primera aparecerá aquí.', 'Crear solicitud', focusForm);
-  else emptyState(empty, 'search', 'Sin resultados', 'Ninguna solicitud coincide con los filtros actuales.', 'Limpiar filtros', () => { tState.q = ''; tState.status = 'Todos'; tState.prio = ''; tState.category = ''; tState.from = ''; tState.to = ''; tState.escalated = false; document.querySelectorAll('[data-ticket-filter]').forEach(el => { el.value = ''; if (el.type === 'checkbox') el.checked = false; }); $('#tSearch').value = ''; $('#tPrio').value = ''; renderTickets(); });
-}
-$('#tSearch').addEventListener('input', e => { tState.q = e.target.value; renderTickets(); });
-$('#tPrio').addEventListener('change', e => { tState.prio = e.target.value; renderTickets(); });
-$('#statusFilters').addEventListener('click', e => {
-  const b = e.target.closest('[data-s]'); if (!b) return;
-  tState.status = b.dataset.s; renderTickets(); $('#statusFilters [aria-pressed="true"]').focus();
-});
-function focusForm(){ $('#ticketForm').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' }); setTimeout(() => $('#tName').focus({ preventScroll: true }), 250); }
-$('#newTicketBtn').addEventListener('click', focusForm);
-
-/* --- Formulario con validación --- */
-const RULES = {
-  name:        v => v.trim().length >= 3 || 'Escribe tu nombre (mínimo 3 caracteres).',
-  email:       v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || 'Escribe un correo válido, por ejemplo nombre@empresa.com.',
-  subject:     v => (v.trim().length >= 5 && v.trim().length <= 90) || 'El asunto debe tener entre 5 y 90 caracteres.',
-  category:    v => !!v || 'Selecciona una categoría.',
-  priority:    v => !!v || 'Selecciona una prioridad.',
-  description: v => v.trim().length >= 15 || 'Describe el problema con al menos 15 caracteres.'
-};
-const form = $('#ticketForm');
-function fieldOf(name){ return form.elements[name]; }
-function validateField(name){
-  const el = fieldOf(name), err = $('#' + el.id + '-err'), r = RULES[name](el.value);
-  const ok = r === true;
-  el.setAttribute('aria-invalid', String(!ok));
-  err.textContent = ok ? '' : r; err.hidden = ok;
-  return ok;
-}
-Object.keys(RULES).forEach(n => {
-  const el = fieldOf(n);
-  el.addEventListener('blur', () => { if (el.value || el.getAttribute('aria-invalid') === 'true') validateField(n); });
-  el.addEventListener('input', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
-  el.addEventListener('change', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
-});
-$('#tDescription').addEventListener('input', e => { $('#tDescCount').textContent = e.target.value.length + '/500'; });
-/* --- Agente IA de la mesa de ayuda (POST /api/agente) --- */
-const CATS = ['Sistemas', 'Inventario', 'Producción', 'Logística', 'Administración', 'Otro'];
-tickets.forEach(x => { if (x.ai && x.ai.pending) delete x.ai; });
-const aiPill = t => !t.ai ? '' : t.ai.pending ? pill('IA revisando…', 'info') : t.ai.error ? '' : t.ai.escalar ? pill('Escalada a una persona', 'warn') : pill('Respondida por IA', 'ok');
-function aiBlock(t){
-  const a = t.ai, ask = (txt) => `<button class="btn btn-ghost btn-sm" type="button" data-ai>${txt}</button>`;
-  let body;
-  if (!a) body = `<p class="small muted" style="margin-bottom:10px">Un agente de IA puede revisar esta solicitud, consultar los datos de BioVolt y responder.</p>${ask('Pedir respuesta al agente IA')}`;
-  else if (a.pending) body = `<p class="muted">El agente está consultando los datos…</p>`;
-  else if (a.error) body = `<p class="err" style="margin-bottom:10px">El agente no pudo responder ahora. Puedes intentarlo de nuevo.</p>${ask('Reintentar')}`;
-  else body = `<div class="desc-box">${esc(a.respuesta)}</div>
-    <p class="small muted" style="margin-top:8px">${a.herramientas && a.herramientas.length ? 'Consultó: ' + esc(a.herramientas.join(' · ')) + '. ' : 'No necesitó consultar datos. '}Categoría: ${esc(t.category)} · Prioridad: ${esc(t.priority)}.</p>
-    ${a.escalar ? `<p class="small" style="margin-top:6px;color:var(--warn)">Requiere a una persona${a.motivo ? ': ' + esc(a.motivo) : '.'}</p>` : ''}
-    <div style="margin-top:10px">${ask('Volver a consultar')}</div>`;
-  return `<div><p class="field-label" style="margin-bottom:6px">Respuesta del agente IA</p>${body}</div>`;
-}
-/* --- Solicitudes en la base de datos (/api/tickets) --- */
-const TAPI = '/api/tickets';
-let adminPinCache = null;
-let ticketTokens = {};
-try { ticketTokens = JSON.parse(sessionStorage.getItem('bvTicketAccess') || '{}'); if (!ticketTokens || Array.isArray(ticketTokens) || typeof ticketTokens !== 'object') ticketTokens = {}; } catch { ticketTokens = {}; }
-function saveAccess(id, token){
-  ticketTokens[id] = token;
-  ticketTokens = Object.fromEntries(Object.entries(ticketTokens).slice(-20));
-  try { sessionStorage.setItem('bvTicketAccess', JSON.stringify(ticketTokens)); } catch {}
-}
-function accessHeaders(id){ return adminPinCache ? { 'x-admin-pin': adminPinCache } : { Authorization: 'Bearer ' + (ticketTokens[id] || '') }; }
-async function loadRemote(silent){
-  try {
-    const pending = new Map(tickets.filter(t => t.ai?.pending).map(t => [t.id, t.ai]));
-    let loaded;
-    if (adminPinCache) loaded = (await BioVolt.fetchJSON(TAPI, { headers: accessHeaders() })).tickets;
-    else {
-      const results = await Promise.allSettled(Object.keys(ticketTokens).map(id => BioVolt.fetchJSON(TAPI, { headers: accessHeaders(id) })));
-      loaded = results.flatMap(r => r.status === 'fulfilled' ? r.value.tickets : []);
-      if (results.some(r => r.status === 'rejected') && !silent) toast('Algunos códigos han vencido o el servicio no está disponible.');
-    }
-    tickets = loaded.map(t => pending.has(t.id) ? { ...t, ai: pending.get(t.id) } : t);
-  } catch (err) { if (err.status === 403) { adminPinCache = null; tickets = []; } if (!silent) toast(err.message); }
-  renderTickets(); renderAnalytics();
-  window.dispatchEvent(new Event('biovolt:tickets'));
-}
-async function adminCall(method, t, body){
-  if (!adminPinCache) adminPinCache = prompt('Clave de docente para esta acción:');
-  if (!adminPinCache) return false;
-  try {
-    const res = await bioPreviewOffline(TAPI + '?id=' + encodeURIComponent(t.id), { method, headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPinCache }, body: body ? JSON.stringify(body) : undefined });
-    const d = await res.json().catch(() => ({}));
-    if (res.status === 403) { adminPinCache = null; toast(d.error || 'Clave incorrecta'); return false; }
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    window.dispatchEvent(new Event('biovolt:tickets'));
-    return d;
-  } catch (err) { console.error(err); toast('No se pudo completar la acción'); return false; }
-}
-async function askAgent(t){
-  t.ai = { pending: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
-  try {
-    const res = await bioPreviewOffline('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json', ...accessHeaders(t.id) }, signal: AbortSignal.timeout(18000), body: JSON.stringify({ id: t.id }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    Object.assign(t, d.ticket);
-    toast(t.id + ' revisada por IA; el cierre requiere verificación humana.');
-  } catch (err) { t.ai = { error: true }; console.error('Agente IA:', err); toast('El agente no pudo responder ahora'); }
-  renderTickets(); renderAnalytics(); if (currentId === t.id) renderDialog(t);
-}
-
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const results = Object.keys(RULES).map(n => [n, validateField(n)]);
-  const bad = results.find(r => !r[1]);
-  if (bad) { fieldOf(bad[0]).focus(); return; }
-  const btn = form.querySelector('[type=submit]'); btn.disabled = true;
-  try {
-    const res = await bioPreviewOffline(TAPI, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      name: fieldOf('name').value, email: fieldOf('email').value, subject: fieldOf('subject').value,
-      category: fieldOf('category').value, priority: fieldOf('priority').value, description: fieldOf('description').value }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    const t = d.ticket; saveAccess(t.id, d.accessToken); tickets.unshift(t);
-    form.reset(); $('#tDescCount').textContent = '0/500';
-    $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
-    $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
-    tState.q = ''; tState.status = 'Todos'; tState.prio = ''; tState.category = ''; tState.from = ''; tState.to = ''; tState.escalated = false; document.querySelectorAll('[data-ticket-filter]').forEach(el => { el.value = ''; if (el.type === 'checkbox') el.checked = false; }); $('#tSearch').value = ''; $('#tPrio').value = '';
-    renderTickets(); renderAnalytics();
-    toast('Solicitud ' + t.id + ' registrada');
-    openTicket(t.id);
-    askAgent(t);
-  } catch (err) { console.error(err); toast('No se pudo registrar: ' + (err.message || 'error')); }
-  finally { btn.disabled = false; }
-});
-
-/* --- Detalle de solicitud (diálogo) --- */
+/* Mesa de ayuda: implementación en assets/helpdesk.js; estado compartido con analítica. */
+let tickets = [];
+const STATUSES = ['Abierto','En proceso','Resuelto'];
+const CATS = ['Sistemas','Inventario','Producción','Logística','Administración','Otro'];
+let adminPinCache = null, ticketTokens = {};
 const dlg = $('#ticketDialog'), dlgBody = $('#dlgBody');
-let currentId = null, delTimer;
-function renderDialog(t){
-  dlgBody.innerHTML = `<div class="dlg">
-    <div class="dlg-top"><div><p class="eyebrow">${esc(t.id)}</p><h2 class="h-sm" id="dlgTitle" style="font-size:24px;margin-top:2px;overflow-wrap:anywhere">${esc(t.subject)}</h2></div>
-      <button class="icon-btn" type="button" data-close aria-label="Cerrar detalle">${icon('x', 20)}</button></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">${prioPill(t.priority)}${statusPill(t.status)}${aiPill(t)}</div>
-    <dl class="dl">
-      <div><dt>Solicitante</dt><dd>${esc(t.name)}</dd></div><div><dt>Correo</dt><dd>${esc(t.email)}</dd></div>
-      <div><dt>Categoría</dt><dd>${esc(t.category)}</dd></div><div><dt>Registrada</dt><dd>${esc(fmtDate(t.createdAt))}</dd></div>
-    </dl>
-    <div><p class="field-label" style="margin-bottom:6px">Descripción</p><div class="desc-box">${esc(t.description)}</div></div>
-    ${ticketTokens[t.id] ? `<div class="field"><label for="privateCode">Código privado (vence en 30 días; guárdalo para otro equipo)</label><input class="input" id="privateCode" readonly value="${esc(ticketTokens[t.id])}"><p class="small muted">Quien tenga este código puede consultar este ticket y pedir una revisión IA. No lo compartas públicamente.</p></div>` : ''}
-    ${aiBlock(t)}
-    <div><button class="btn btn-outline btn-sm" type="button" data-follow>Seguimiento interno · Docente</button><div id="followBody" class="stack mt"></div></div>
-    <div><p class="field-label" id="stLabel" style="margin-bottom:8px">Cambiar estado</p>
-      <div class="seg-group" role="group" aria-labelledby="stLabel">${STATUSES.map(s => `<button type="button" class="seg${s === t.status ? ' on' : ''}" data-status="${s}" aria-pressed="${s === t.status}">${s}</button>`).join('')}</div></div>
-    <div class="dlg-actions"><button class="btn btn-danger btn-sm" type="button" data-del>${icon('trash', 16)}Eliminar</button><button class="btn btn-outline btn-sm" type="button" data-close>Cerrar</button></div>
-  </div>`;
-}
-function openTicket(id){
-  const t = tickets.find(x => x.id === id); if (!t) return;
-  currentId = id; renderDialog(t);
-  if (!dlg.open) dlg.showModal();
-}
-$('#ticketList').addEventListener('click', e => { const b = e.target.closest('.ticket'); if (b) openTicket(b.dataset.id); });
-dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
-dlg.addEventListener('close', () => { currentId = null; clearTimeout(delTimer); });
-dlgBody.addEventListener('click', e => {
-  if (e.target.closest('[data-close]')) { dlg.close(); return; }
-  const t = tickets.find(x => x.id === currentId); if (!t) return;
-  if (e.target.closest('[data-ai]')) { askAgent(t); return; }
-  const sb = e.target.closest('[data-status]');
-  if (sb) {
-    if (t.status !== sb.dataset.status) {
-      adminCall('PATCH', t, { estado: sb.dataset.status }).then(d => { if (d) { t.status = d.ticket.status; renderTickets(); renderAnalytics(); renderDialog(t); toast(t.id + ' → ' + t.status); } });
-    }
-    const again = dlgBody.querySelector('[data-status="' + t.status + '"]'); if (again) again.focus();
-    return;
-  }
-  const del = e.target.closest('[data-del]');
-  if (del) {
-    if (!del.dataset.confirm) {
-      del.dataset.confirm = '1'; del.textContent = '¿Confirmar eliminación?';
-      clearTimeout(delTimer); delTimer = setTimeout(() => { if (currentId) renderDialog(t); }, 4000);
-    } else {
-      adminCall('DELETE', t).then(d => { if (d) { tickets = tickets.filter(x => x.id !== t.id); dlg.close(); renderTickets(); renderAnalytics(); toast(t.id + ' eliminada'); } });
-    }
-  }
-});
+let currentId = null;
+function renderTickets(){ window.BioVoltHelpdesk?.render(); }
+function loadRemote(silent){ return window.BioVoltHelpdesk?.load(silent); }
 
 /* =====================================================================
    G. ASISTENTE IA (simulado)
@@ -2108,12 +1975,12 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
     const url = URL.createObjectURL(new Blob([BioVolt.csv(rows)], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  $$('.view').map(view => view.querySelector(':scope > .container')).filter(Boolean).forEach(container => container.insertAdjacentHTML('afterbegin', '<p class="source-note small muted" data-source-note role="status"></p>'));
+  $('.view').map(view => view.querySelector(':scope > .container')).filter(Boolean).forEach(container => container.insertAdjacentHTML('afterbegin', '<p class="source-note small muted" data-source-note role="status"></p>'));
   function sources(detail) {
-    $$('[data-source-note]').forEach(el => el.textContent = sourceText() + (DB.stats.energyUnknown ? ' · ' + DB.stats.energyUnknown + ' registros con unidades no compatibles, excluidos de energía.' : ''));
+    $('[data-source-note]').forEach(el => el.textContent = sourceText() + (DB.stats.energyUnknown ? ' · ' + DB.stats.energyUnknown + ' registros con unidades no compatibles, excluidos de energía.' : ''));
     if (detail?.availability) {
       const missing = Object.entries(detail.availability).filter(([,v]) => !v).map(([k]) => ({ biomass:'biomasa', inventory:'inventario', productionRows:'producción' }[k]));
-      if (missing.length) $$('[data-source-note]').forEach(el => el.textContent += ' · No disponible: ' + missing.join(', ') + '.');
+      if (missing.length) $('[data-source-note]').forEach(el => el.textContent += ' · No disponible: ' + missing.join(', ') + '.');
     }
   }
   sources(liveMetadata);
@@ -2124,52 +1991,6 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
     $('#operationSummary').innerHTML = '<h3 class="field-label">Mantenimientos por planta</h3>' + (Array.isArray(maintenance) ? maintenance.map(r => `<p class="small">${esc(r.planta)}: ${num(r.registros)} registros · costo ${nf2.format(r.costo)} (unidad monetaria de origen por confirmar)</p>`).join('') || '<p class="small">Sin registros.</p>' : '<p class="small muted">Mantenimiento no disponible; no se sustituyó por cifras de muestra.</p>') + '<h3 class="field-label">Eficiencia de pruebas por biomasa</h3>' + (Array.isArray(efficiency) ? efficiency.map(r=>`<p class="small">${esc(r.tipo)}: ${nf2.format(r.eficiencia)}% · ${num(r.pruebas)} pruebas</p>`).join('') || '<p class="small">Sin pruebas registradas.</p>' : '<p class="small muted">Pruebas no disponibles. No se puede calcular eficiencia operativa sin relaciones y unidades verificadas de consumo de biomasa.</p>');
   }
   showOperations();
-
-  /* Consulta privada. El PIN no se persiste; los códigos se guardan solo en esta pestaña. */
-  $('#ticketStats').insertAdjacentHTML('beforebegin', `<div class="card access-panel">
-    <p class="field-label">Consultar mis solicitudes</p><p class="small muted">Pega tu código privado. Las solicitudes anteriores a esta versión se recuperan con el docente. Los códigos nuevos vencen en 30 días.</p>
-    <form id="accessForm" class="toolbar mt"><label class="sr-only" for="accessCode">Código privado de solicitud</label><input class="input" id="accessCode" autocomplete="off" type="password" placeholder="Código privado"><button class="btn btn-outline btn-sm" type="submit">Consultar</button></form>
-    <div class="toolbar"><button class="btn btn-ghost btn-sm" id="teacherAccess" type="button">Acceso docente</button><button class="btn btn-ghost btn-sm" id="teacherExit" type="button">Salir de docente</button><button class="btn btn-ghost btn-sm" id="forgetAccess" type="button">Olvidar mis códigos</button><span class="small muted" id="accessStatus" role="status">Solo tus solicitudes</span></div>
-  </div>`);
-  $('#accessForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const token = $('#accessCode').value.trim();
-    try {
-      const data = await BioVolt.fetchJSON(TAPI, { headers: { Authorization: 'Bearer ' + token } });
-      if (!data.tickets?.length) throw new Error('La solicitud ya no está disponible.');
-      saveAccess(data.tickets[0].id, token); $('#accessCode').value = ''; await loadRemote(false);
-    } catch (err) { toast(err.message); }
-  });
-  $('#teacherAccess').addEventListener('click', async () => {
-    const pin = prompt('Clave de docente:'); if (!pin) return;
-    try {
-      await BioVolt.fetchJSON(TAPI, { headers: { 'x-admin-pin': pin } });
-      adminPinCache = pin; await loadRemote(false);
-    } catch (err) { toast(err.message); }
-  });
-  $('#teacherExit').addEventListener('click', () => { adminPinCache = null; dlg.close(); loadRemote(false); });
-  $('#forgetAccess').addEventListener('click', () => { ticketTokens = {}; try { sessionStorage.removeItem('bvTicketAccess'); } catch {} dlg.close(); loadRemote(false); });
-  window.addEventListener('biovolt:tickets', () => $('#accessStatus').textContent = adminPinCache ? 'Acceso docente · últimas 100 solicitudes' : 'Solo solicitudes con código privado en esta pestaña');
-
-  $('#tPrio').insertAdjacentHTML('afterend', `<label class="sr-only" for="tCatFilter">Categoría de tickets</label><select class="select" id="tCatFilter" data-ticket-filter><option value="">Todas las categorías</option>${CATS.map(c => `<option>${esc(c)}</option>`).join('')}</select><label class="small">Desde<input class="input" id="tFrom" data-ticket-filter type="date"></label><label class="small">Hasta<input class="input" id="tTo" data-ticket-filter type="date"></label><label class="small"><input id="tEscalated" data-ticket-filter type="checkbox"> Solo escaladas</label>`);
-  [['#tCatFilter','category'],['#tFrom','from'],['#tTo','to'],['#tEscalated','escalated']].forEach(([sel,key]) => $(sel).addEventListener('change', e => { tState[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; renderTickets(); }));
-  dlgBody.addEventListener('click', async e => {
-    if (!e.target.closest('[data-follow]')) return;
-    if (!adminPinCache) { toast('Entra como docente para consultar notas internas.'); return; }
-    const id = currentId;
-    try {
-      const d = await BioVolt.fetchJSON('/api/seguimiento?id=' + encodeURIComponent(id.replace('BV-','')), { headers: accessHeaders(id) });
-      if (currentId !== id || !$('#followBody')) return;
-      $('#followBody').innerHTML = `<ul class="stack">${d.seguimiento.map(n => `<li class="metric-tile"><b>${esc(n.responsable || 'Sin asignar')}</b><p>${esc(n.nota)}</p><span class="small muted">${esc(fmtDate(Number(n.fecha)))}</span></li>`).join('') || '<li class="small muted">Sin notas internas.</li>'}</ul><form id="followForm" class="form"><div class="field"><label for="followOwner">Responsable</label><input class="input" id="followOwner" maxlength="80"></div><div class="field"><label for="followNote">Comentario interno</label><textarea class="textarea" id="followNote" minlength="3" maxlength="500" required></textarea></div><button class="btn btn-outline btn-sm" type="submit">Guardar seguimiento</button></form>`;
-      $('#followForm').addEventListener('submit', async event => {
-        event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true;
-        try {
-          await BioVolt.fetchJSON('/api/seguimiento?id=' + encodeURIComponent(id.replace('BV-','')), { method:'POST', headers:{ ...accessHeaders(id), 'Content-Type':'application/json' }, body:JSON.stringify({ responsable:$('#followOwner').value, nota:$('#followNote').value }) });
-          toast('Seguimiento guardado.'); if (currentId === id) dlgBody.querySelector('[data-follow]').click();
-        } catch (err) { toast(err.message); } finally { button.disabled = false; }
-      });
-    } catch (err) { toast(err.message); }
-  });
 
   /* Inventario por material Y almacén. Nunca compara kg con toneladas. */
   $('#invCount').insertAdjacentHTML('beforebegin', `<label class="sr-only" for="invType">Tipo de biomasa</label><select class="select" id="invType"><option value="">Todos los tipos</option></select><label class="sr-only" for="invWarehouse">Almacén</label><select class="select" id="invWarehouse"><option value="">Todos los almacenes</option></select>`);
@@ -2213,7 +2034,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
   $('#view-analitica .container').insertAdjacentHTML('beforeend', panelHTML);
   $('#view-inicio section[aria-label="Indicadores principales"]').insertAdjacentHTML('beforeend', panelHTML);
   function periodOptions() {
-    $$('[data-period-form]').forEach(form => {
+    $('[data-period-form]').forEach(form => {
       form.elements.from.value = range.from; form.elements.to.value = range.to;
       form.elements.plant.innerHTML = '<option value="">Todas</option>' + DB.plants.map(p => `<option value="${esc(p.id_planta)}">${esc(p.nombre)}</option>`).join('');
       form.elements.plant.value = range.plant;
@@ -2235,19 +2056,19 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
     const prev = num(a.previous.kwh), current = num(a.current.kwh), delta = prev ? (current-prev)/prev*100 : null;
     const max = Math.max(1,...a.daily.map(r=>num(r.kwh)));
     const html = `<p class="small muted">${a.source === 'tidb' ? 'TiDB' : 'Demostración local'} · ${esc(a.range.from)} a ${esc(a.range.to)} · comparación con ${esc(a.range.previousFrom)} a ${esc(a.range.previousTo)}</p><div class="grid comparison-grid mt"><div class="metric-tile"><p class="small">Periodo actual</p><p class="panel-title">${nf2.format(current)} kWh</p><p class="small">${num(a.current.records)} registros</p></div><div class="metric-tile"><p class="small">Periodo anterior</p><p class="panel-title">${nf2.format(prev)} kWh</p></div><div class="metric-tile"><p class="small">Variación</p><p class="panel-title">${delta === null ? 'Sin base comparable' : (delta >= 0 ? '+' : '') + nf2.format(delta) + '%'}</p></div></div><p class="small mt">${num(a.current.unknown)} registros excluidos por unidad desconocida. Una variación de producción no implica por sí sola una mejora ambiental.</p><details class="mt"><summary>Ver tendencia diaria y producción por planta</summary><div class="table-wrap" tabindex="0"><table><thead><tr><th>Fecha</th><th>Producción (kWh)</th><th>Tendencia relativa</th></tr></thead><tbody>${a.daily.map(r=>`<tr><td>${esc(String(r.date).slice(0,10))}</td><td>${nf2.format(r.kwh)}</td><td><div class="track"><span style="width:${100*num(r.kwh)/max}%"></span></div></td></tr>`).join('') || '<tr><td colspan="3">Sin registros para el periodo.</td></tr>'}</tbody></table></div><ul class="stack mt">${a.plants.map(r=>`<li>${esc(r.nombre || 'Planta sin nombre')}: ${nf2.format(r.kwh)} kWh</li>`).join('')}</ul></details>`;
-    $$('[data-period-output]').forEach(el=>el.innerHTML=html);
+    $('[data-period-output]').forEach(el=>el.innerHTML=html);
   }
   async function loadAnalytics() {
     const seq = ++analyticsSeq;
-    $$('[data-period-output]').forEach(el=>el.textContent='Consultando periodo…');
+    $('[data-period-output]').forEach(el=>el.textContent='Consultando periodo…');
     try {
       const result = dataSource === 'demo' ? demoAnalytics() : await BioVolt.fetchJSON('/api/data?' + new URLSearchParams({ view:'analytics', ...range }));
       if (seq !== analyticsSeq) return;
       analytics = result; showAnalytics();
-    } catch (err) { if (seq === analyticsSeq) { analytics = null; $$('[data-period-output]').forEach(el=>el.textContent=err.message); } }
+    } catch (err) { if (seq === analyticsSeq) { analytics = null; $('[data-period-output]').forEach(el=>el.textContent=err.message); } }
   }
   periodOptions(); loadAnalytics();
-  $$('[data-period-form]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault(); range={ from:form.elements.from.value, to:form.elements.to.value, plant:form.elements.plant.value }; periodOptions(); loadAnalytics(); }));
+  $('[data-period-form]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault(); range={ from:form.elements.from.value, to:form.elements.to.value, plant:form.elements.plant.value }; periodOptions(); loadAnalytics(); }));
 
   /* Simulación explícita, sin parámetros científicos inventados. */
   $('#view-analitica .container').insertAdjacentHTML('beforeend', `<article class="card mt" id="simulator"><h2 class="panel-title">Simulador energético</h2><p class="small muted">Estimaciones orientativas; no son registros TiDB. Introduce tus propios supuestos y su fuente. No hay rendimientos técnicos predefinidos.</p><form class="form mt" id="simForm"><div class="field-row cols-2"><div class="field"><label for="simType">Tipo de biomasa / escenario</label><input class="input" id="simType" maxlength="80" required></div><div class="field"><label for="simSource">Fuente de los supuestos</label><input class="input" id="simSource" maxlength="200" required placeholder="Ej. hipótesis propia o ficha técnica consultada"></div></div><div class="field-row cols-2"><div class="field"><label for="simMass">Biomasa (kg)</label><input class="input" id="simMass" type="number" min="0" step="any" required></div><div class="field"><label for="simYield">Rendimiento térmico supuesto (kWh/kg)</label><input class="input" id="simYield" type="number" min="0" step="any" required></div></div><div class="field-row cols-2"><div class="field"><label for="simEfficiency">Eficiencia eléctrica supuesta (%)</label><input class="input" id="simEfficiency" type="number" min="0" max="100" step="any" required></div><div class="field"><label for="simPrice">Precio supuesto (COP/kWh)</label><input class="input" id="simPrice" type="number" min="0" step="any" required></div></div><button class="btn btn-outline" type="submit">Calcular y comparar escenario</button></form><p class="small mt">Energía (kWh) = biomasa (kg) × rendimiento térmico (kWh/kg) × eficiencia (%) / 100. Ingreso bruto (COP) = energía × precio. No incluye humedad, pérdidas adicionales, disponibilidad, impuestos, costos ni ingresos netos. Hasta 5 escenarios por comparación.</p><div id="simResults" class="mt" aria-live="polite"></div><button class="btn btn-ghost btn-sm mt" id="simClear" type="button">Limpiar escenarios</button></article>`);
@@ -2274,7 +2095,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
       rows.push(['Fuente de producción',analytics.source === 'tidb' ? 'TiDB' : 'Demostración local'],['Periodo',analytics.range.from,analytics.range.to],['Planta',range.plant ? plantName(range.plant) : 'Todas'],['Fecha','Producción (kWh)'],...analytics.daily.map(r=>[String(r.date).slice(0,10),r.kwh]),['Excluidos por unidad desconocida',analytics.current.unknown]);
     } else if(type==='environment') rows.push(['Alcance','Acumulado global; no aplica filtro de producción'],['Indicador','Cantidad','Unidad'],['CO₂ evitado',DB.stats.co2,'t'],['Residuos procesados',DB.stats.waste,'t']);
     else if(type==='inventory') rows.push(['Alcance','Solo filas cargadas y filtros de Inventario; conjunto potencialmente parcial'],['Material','Tipo','Almacén','Stock','Unidad'],...visibleInventory.map(r=>[r.nombre,labelType(r),r.warehouse,r.stock,r.unidad]));
-    else if(type==='tickets') rows.push(['Alcance','Solo solicitudes autorizadas cargadas (hasta 100 para docente); sin información personal'],['Estado','Cantidad'],...STATUSES.map(status=>[status,tickets.filter(t=>t.status===status).length]),['Escaladas',tickets.filter(t=>t.ai?.escalar).length]);
+    else if(type==='tickets') { const summary=window.BioVoltHelpdesk?.summary(); rows.push(['Alcance',summary?.scope==='docente'?'Cola autorizada con filtros aplicados; conteos agregados del servidor':'Solicitudes accesibles con los códigos de esta pestaña'],['Estado','Cantidad'],...STATUSES.map((status,i)=>[status,summary?.stats?Number(summary.stats[['abiertos','proceso','resueltos'][i]]||0):tickets.filter(t=>t.status===status).length]),['Escaladas',summary?.stats?Number(summary.stats.escaladas||0):tickets.filter(t=>t.ai?.escalar).length]); }
     else rows.push(['Fuente','Supuestos introducidos por el usuario; estimaciones, no TiDB'],['Escenario','Biomasa (kg)','Rendimiento (kWh/kg)','Eficiencia (%)','Precio (COP/kWh)','Energía estimada (kWh)','Ingreso bruto estimado (COP)','Fuente de supuestos'],...scenarios.map(r=>[r.type,r.mass,r.yieldKwh,r.efficiency,r.price,r.kwh,r.revenue,r.source]));
     return rows;
   }
@@ -2297,6 +2118,217 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
     periodOptions(); loadAnalytics();
   });
   // Movimiento continuo solicitado por el propietario; no se modifica desde la preferencia del sistema.
+})();
+
+</script>
+<script>
+/* Mesa de ayuda: agente primero, conversación privada y cola docente sobre las rutas existentes. */
+'use strict';
+(function(){
+  const API='/api/tickets', RESPONSABLES=['José Montalvo','Cristopher Orozco','Carlos Romero'];
+  const api=BioVolt.fetchJSON;
+  let epoch=0,queueSeq=0,queue={scope:'propietario',stats:null,page:1,pages:1},detail=null,older=null,poll=null,pollCount=0;
+  let filters={status:'',priority:'',category:'',assignee:'',ai:'',q:'',from:'',to:'',escalated:'',unassigned:'',staleHours:'',sort:'priority'};
+  let queueTimer,draftKey=null,detailSeq=0,threadSignature='',busy=false;
+  try { const saved=JSON.parse(sessionStorage.getItem('bvTicketAccess')||'{}'); if(saved&&typeof saved==='object'&&!Array.isArray(saved))ticketTokens=Object.fromEntries(Object.entries(saved).filter(([id,token])=>/^BV-\d+$/.test(id)&&typeof token==='string').slice(-20)); }catch{}
+  const key=()=>crypto.randomUUID();
+  const helpDate=ts=>new Date(ts).toLocaleString('es-CO',{timeZone:'America/Bogota',dateStyle:'medium',timeStyle:'short'});
+  function saveAccess(id,token){ticketTokens[id]=token;ticketTokens=Object.fromEntries(Object.entries(ticketTokens).slice(-20));try{sessionStorage.setItem('bvTicketAccess',JSON.stringify(ticketTokens));}catch{}}
+  const headers=(id,ownerOnly=false)=>!ownerOnly&&adminPinCache?{'x-admin-pin':adminPinCache}:{Authorization:'Bearer '+(ticketTokens[id]||'')};
+  const send=(id,body,method='POST',ownerOnly=false)=>api(API+(id?'?id='+encodeURIComponent(id):''),{method,headers:{...headers(id,ownerOnly),'Content-Type':'application/json'},body:JSON.stringify({...body,...(id?{id}:{})})});
+  const aiState=t=>t.ai?.status||(t.ai?.respuesta?'respondido':'pendiente');
+  const stateText={pendiente:'Agente IA pendiente',analizando:'Agente IA analizando',respondido:'Respuesta IA simulada',escalado:'IA respondió · requiere una persona',fallo:'IA no pudo completar la respuesta'};
+  const waiting={agente:'Atención del agente IA',solicitante:'Respuesta del solicitante',persona:'Atención de una persona',nadie:'Solicitud resuelta'};
+  const age=ts=>{const minutes=Math.max(0,Math.floor((Date.now()-Number(ts))/60000));return minutes<60?minutes+' min':minutes<1440?Math.floor(minutes/60)+' h':Math.floor(minutes/1440)+' días';};
+  function errorText(error){return error?.name==='TimeoutError'?'La operación tardó demasiado. El ticket puede estar guardado; reintenta el mismo envío.':error.message||'No se pudo completar la operación.';}
+  function broadcast(){renderAnalytics();window.dispatchEvent(new Event('biovolt:tickets'));}
+  function upsert(ticket){const index=tickets.findIndex(t=>t.id===ticket.id);if(index<0)tickets.unshift(ticket);else tickets[index]=ticket;}
+
+  $('#ticketStats').insertAdjacentHTML('beforebegin',`<div class="card access-panel">
+    <h2 class="panel-title">Mis solicitudes y acceso de soporte</h2><p class="small muted">Tu código privado abre únicamente tu solicitud y su conversación. Vence a los 30 días; guárdalo para otro equipo.</p>
+    <form id="accessForm" class="toolbar mt"><label class="sr-only" for="accessCode">Código privado</label><input class="input" id="accessCode" type="password" autocomplete="off" placeholder="Pega tu código privado" required><button class="btn btn-outline btn-sm" type="submit">Consultar</button></form>
+    <details><summary>Perdí mi código · Recuperar por correo</summary><p class="small muted mt">El acceso requiere verificar el correo registrado. No basta con conocer el número de solicitud. El envío de correo debe estar configurado por el administrador.</p>
+    <form id="recoveryForm" class="form mt"><div class="field-row cols-2"><div class="field"><label for="recoveryId">Número de solicitud</label><input class="input" id="recoveryId" placeholder="BV-123" required></div><div class="field"><label for="recoveryEmail">Correo registrado</label><input class="input" id="recoveryEmail" type="email" autocomplete="email" required></div></div><button class="btn btn-outline btn-sm" id="requestRecovery" type="submit">Enviar código de verificación</button><div class="field"><label for="recoveryCode">Código recibido por correo (6 dígitos)</label><input class="input" id="recoveryCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div><button class="btn btn-outline btn-sm" type="button" id="verifyRecovery">Verificar y recuperar acceso</button><p id="recoveryStatus" class="small" role="status"></p></form></details>
+    <div class="toolbar mt"><button class="btn btn-ghost btn-sm" id="teacherAccess" type="button">Acceso docente</button><button class="btn btn-ghost btn-sm" id="teacherExit" type="button" hidden>Salir de docente</button><button class="btn btn-ghost btn-sm" id="forgetAccess" type="button">Olvidar mis códigos</button><button class="btn btn-ghost btn-sm" id="refreshQueue" type="button">Actualizar</button></div><p id="accessStatus" class="small muted" role="status">Solo solicitudes con código privado</p>
+  </div><p class="err" id="queueError" role="alert" hidden></p>`);
+  document.body.insertAdjacentHTML('beforeend',`<dialog id="teacherDialog" aria-labelledby="teacherTitle"><form id="teacherForm" class="dlg"><h2 class="panel-title" id="teacherTitle">Acceso docente</h2><div class="field"><label for="teacherPin">Clave de docente</label><input class="input" id="teacherPin" type="password" autocomplete="off" required></div><p class="small muted">Permite asignar responsables y revisar la cola completa. La clave se conserva solo mientras esta página esté abierta.</p><p id="teacherError" class="err" role="alert"></p><div class="toolbar"><button class="btn btn-primary" type="submit">Entrar</button><button class="btn btn-outline" id="teacherCancel" type="button">Cancelar</button></div></form></dialog>`);
+  const originalToolbar=$('#tPrio').closest('.toolbar');
+  originalToolbar.insertAdjacentHTML('afterend',`<div class="toolbar" id="queueFilters">
+    <label class="small">Categoría<select class="select" id="tCatFilter"><option value="">Todas</option>${CATS.map(c=>`<option>${esc(c)}</option>`).join('')}</select></label>
+    <label class="small">Desde<input class="input" id="tFrom" type="date"></label><label class="small">Hasta<input class="input" id="tTo" type="date"></label>
+    <label class="small">Estado del agente<select class="select" id="tAiFilter"><option value="">Todos</option>${Object.entries(stateText).map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join('')}</select></label>
+    <label class="small">Responsable<select class="select" id="tAssignee"><option value="">Todos</option>${RESPONSABLES.map(r=>`<option>${esc(r)}</option>`).join('')}</select></label>
+    <label class="small">Espera mayor a (horas, opcional)<input class="input" id="tStale" type="number" min="1" max="8760" placeholder="Sin umbral"></label>
+    <label class="small">Orden<select class="select" id="tSort"><option value="priority">Prioridad y antigüedad</option><option value="oldest">Más antiguas</option><option value="recent">Actividad reciente</option></select></label>
+    <label class="small"><input type="checkbox" id="tEscalated"> Solo escaladas</label><label class="small"><input type="checkbox" id="tUnassigned"> Sin responsable</label>
+    <button class="btn btn-ghost btn-sm" type="button" id="clearTicketFilters">Limpiar filtros</button></div>`);
+  $('#ticketList').insertAdjacentHTML('afterend','<div id="ticketPagination" class="toolbar mt"><button class="btn btn-outline btn-sm" id="ticketPrev" type="button">Anterior</button><span class="small" id="ticketPage"></span><button class="btn btn-outline btn-sm" id="ticketNext" type="button">Siguiente</button></div>');
+  $('#ticketStats').style.gridTemplateColumns='repeat(auto-fit,minmax(130px,1fr))';
+  $('#tSearch').placeholder='Buscar por asunto, ID o nombre…';
+  function applyScope(){
+    $('#accessStatus').textContent=adminPinCache?'Cola docente · métricas agregadas del servidor con los filtros aplicados':'Solo solicitudes con código privado en esta pestaña';
+    $('#teacherExit').hidden=!adminPinCache;$('#tAssignee').disabled=false;$('#tUnassigned').disabled=false;
+    $('#ticketPagination').hidden=!adminPinCache;$('#ticketPrev').disabled=queue.page<=1;$('#ticketNext').disabled=queue.page>=queue.pages;$('#ticketPage').textContent='Página '+queue.page+' de '+queue.pages;
+  }
+  function ownerRows(){
+    let rows=tickets.filter(t=>(!filters.status||t.status===filters.status)&&(!filters.priority||t.priority===filters.priority)&&(!filters.category||t.category===filters.category)&&(!filters.assignee||t.assignee===filters.assignee)&&(!filters.unassigned||!t.assignee)&&(!filters.staleHours||(t.status!=='Resuelto'&&Date.now()-t.createdAt>=Number(filters.staleHours)*3600000))&&(!filters.ai||aiState(t)===filters.ai)&&(!filters.escalated||t.ai?.escalar)&&(!filters.q||norm([t.id,t.subject,t.name].join(' ')).includes(norm(filters.q)))&&(!filters.from||t.createdAt>=Date.parse(filters.from+'T00:00:00'))&&(!filters.to||t.createdAt<=Date.parse(filters.to+'T23:59:59.999')));
+    const rank={Crítica:0,Alta:1,Media:2,Baja:3};return rows.sort((a,b)=>filters.sort==='oldest'?a.createdAt-b.createdAt:filters.sort==='recent'?(b.updatedAt||b.createdAt)-(a.updatedAt||a.createdAt):(rank[a.priority]-rank[b.priority]||a.createdAt-b.createdAt));
+  }
+  function render(){
+    const rows=adminPinCache?tickets:ownerRows(),s=adminPinCache?queue.stats:null;
+    const values=s?[['Abiertos',s.abiertos],['En proceso',s.proceso],['Resueltos',s.resueltos],['Escaladas abiertas',s.escaladas],['Sin responsable',s.sin_asignar]]:[['Abiertos',rows.filter(t=>t.status==='Abierto').length],['En proceso',rows.filter(t=>t.status==='En proceso').length],['Resueltos',rows.filter(t=>t.status==='Resuelto').length]];
+    $('#ticketStats').innerHTML=values.map(([label,value])=>`<div class="card"><p class="small muted">${label}</p><p class="stat-value" style="font-size:30px">${Number(value)||0}</p></div>`).join('');
+    $('#statusFilters').innerHTML=['Todos',...STATUSES].map(s=>`<button class="chip" type="button" data-status-filter="${s==='Todos'?'':s}" aria-pressed="${filters.status===(s==='Todos'?'':s)}">${s}</button>`).join('');
+    $('#ticketCount').textContent=rows.length+' visibles'+(s?' de '+Number(s.total)+' solicitudes filtradas':' con tus códigos privados')+(s?.minutos_resolucion!=null?' · Resolución media registrada: '+Math.round(Number(s.minutos_resolucion))+' min':'');
+    $('#ticketList').innerHTML=rows.map(t=>`<button class="card ticket" type="button" data-ticket="${esc(t.id)}"><span class="ticket-main"><span class="ticket-title">${esc(t.subject)}</span><span class="small muted">${esc(t.id)} · ${esc(t.category)} · ${esc(helpDate(t.createdAt))}</span><span class="small">${esc(t.assignee||'Sin responsable asignado')} · Última actividad hace ${esc(age(t.updatedAt||t.createdAt))}</span><span class="small muted">Espera: ${esc(waiting[t.waitingFor]||'Agente IA')}</span></span><span class="ticket-pills">${prioPill(t.priority)}${statusPill(t.status)}${pill(stateText[aiState(t)]||'Estado IA no disponible',aiState(t)==='fallo'?'danger':t.ai?.escalar?'warn':'info')}</span></button>`).join('');
+    $('#ticketEmpty').hidden=rows.length>0;
+    if(!rows.length)emptyState($('#ticketEmpty'),'inbox','No hay solicitudes visibles',adminPinCache?'No hay resultados para estos filtros.':'Crea una solicitud o introduce su código privado para consultar el historial.');
+    applyScope();
+  }
+  async function load(silent=false){
+    const requestEpoch=epoch,seq=++queueSeq;$('#queueError').hidden=true;
+    try{
+      if(adminPinCache){
+        const params=new URLSearchParams({...filters,page:String(queue.page)});const data=await api(API+'?'+params,{headers:headers()});
+        if(requestEpoch!==epoch||seq!==queueSeq)return;
+        if(data.page>data.pages){queue.page=data.pages;return load(silent);}
+        tickets=data.tickets;queue=data;
+      }else{
+        const results=await Promise.allSettled(Object.keys(ticketTokens).map(id=>api(API,{headers:headers(id)})));
+        if(requestEpoch!==epoch||seq!==queueSeq)return;
+        tickets=results.flatMap(r=>r.status==='fulfilled'?r.value.tickets:[]);queue={scope:'propietario',stats:null,page:1,pages:1};
+        if(results.some(r=>r.status==='rejected')&&!silent)throw new Error('Alguna solicitud no pudo cargarse. El código puede haber vencido o el servicio no está disponible.');
+      }
+    }catch(error){
+      if(requestEpoch!==epoch||seq!==queueSeq)return;
+      if(error.status===403){adminPinCache=null;tickets=[];epoch++;}
+      $('#queueError').textContent=errorText(error);$('#queueError').hidden=false;
+    }
+    render();broadcast();
+  }
+  function reloadFilters(){if(filters.from&&filters.to&&filters.from>filters.to){$('#queueError').textContent='El intervalo de fechas está invertido.';$('#queueError').hidden=false;return;}queue.page=1;if(adminPinCache)load();else render();}
+  [['#tStale','staleHours'],['#tPrio','priority'],['#tCatFilter','category'],['#tFrom','from'],['#tTo','to'],['#tAiFilter','ai'],['#tAssignee','assignee'],['#tSort','sort'],['#tEscalated','escalated'],['#tUnassigned','unassigned']].forEach(([selector,name])=>$(selector).addEventListener('change',e=>{filters[name]=e.target.type==='checkbox'?(e.target.checked?'1':''):e.target.value;reloadFilters();}));
+  $('#tSearch').addEventListener('input',e=>{filters.q=e.target.value;clearTimeout(queueTimer);queueTimer=setTimeout(reloadFilters,350);});
+  $('#statusFilters').addEventListener('click',e=>{const button=e.target.closest('[data-status-filter]');if(button){filters.status=button.dataset.statusFilter;reloadFilters();}});
+  $('#clearTicketFilters').addEventListener('click',()=>{filters={status:'',priority:'',category:'',assignee:'',ai:'',q:'',from:'',to:'',escalated:'',unassigned:'',staleHours:'',sort:'priority'};['#tStale','#tPrio','#tCatFilter','#tFrom','#tTo','#tAiFilter','#tAssignee','#tSearch'].forEach(s=>$(s).value='');$('#tSort').value='priority';$('#tEscalated').checked=false;$('#tUnassigned').checked=false;reloadFilters();});
+  $('#ticketPrev').addEventListener('click',()=>{if(queue.page>1){queue.page--;load();}});$('#ticketNext').addEventListener('click',()=>{if(queue.page<queue.pages){queue.page++;load();}});
+  $('#refreshQueue').addEventListener('click',()=>load());
+  $('#accessForm').addEventListener('submit',async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{const token=$('#accessCode').value.trim(),data=await api(API,{headers:{Authorization:'Bearer '+token}});if(!data.tickets?.length)throw new Error('Solicitud no disponible.');saveAccess(data.tickets[0].id,token);$('#accessCode').value='';await load();await openTicket(data.tickets[0].id);}catch(error){toast(errorText(error));}finally{button.disabled=false;}});
+  $('#teacherAccess').addEventListener('click',()=>{$('#teacherPin').value='';$('#teacherError').textContent='';$('#teacherDialog').showModal();});
+  $('#teacherCancel').addEventListener('click',()=>$('#teacherDialog').close());
+  $('#teacherForm').addEventListener('submit',async e=>{e.preventDefault();const button=e.target.querySelector('[type=submit]');button.disabled=true;try{const pin=$('#teacherPin').value;const data=await api(API,{headers:{'x-admin-pin':pin}});epoch++;adminPinCache=pin;queue=data;tickets=data.tickets;$('#teacherPin').value='';$('#teacherDialog').close();render();broadcast();}catch(error){$('#teacherError').textContent=errorText(error);}finally{button.disabled=false;}});
+  $('#teacherExit').addEventListener('click',()=>{epoch++;adminPinCache=null;detail=null;dlg.close();tickets=[];queue={scope:'propietario',stats:null,page:1,pages:1};load();});
+  $('#forgetAccess').addEventListener('click',()=>{epoch++;ticketTokens={};try{sessionStorage.removeItem('bvTicketAccess');}catch{}detail=null;dlg.close();tickets=[];load();});
+  $('#recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const button=$('#requestRecovery');button.disabled=true;try{const data=await send(null,{action:'recover',id:$('#recoveryId').value.trim(),email:$('#recoveryEmail').value.trim()});$('#recoveryStatus').textContent=data.message;}catch(error){$('#recoveryStatus').textContent=errorText(error);}finally{button.disabled=false;}});
+  $('#verifyRecovery').addEventListener('click',async e=>{if(!$('#recoveryForm').reportValidity())return;e.target.disabled=true;try{const id=$('#recoveryId').value.trim(),data=await send(null,{action:'verify',id,email:$('#recoveryEmail').value.trim(),code:$('#recoveryCode').value.trim()});const numeric=id.replace(/^BV-/,'');saveAccess('BV-'+numeric,data.accessToken);$('#recoveryCode').value='';$('#recoveryStatus').textContent='Acceso recuperado. Conserva el nuevo código privado.';await load();await openTicket('BV-'+numeric);}catch(error){$('#recoveryStatus').textContent=errorText(error);}finally{e.target.disabled=false;}});
+
+  const form=$('#ticketForm');
+  const rules={name:v=>v.trim().length>=3,email:v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()),subject:v=>v.trim().length>=5,category:v=>CATS.includes(v),priority:v=>['Baja','Media','Alta','Crítica'].includes(v),description:v=>v.trim().length>=15};
+  function validate(name){const field=form.elements[name],ok=rules[name](field.value),error=$('#'+field.id+'-err');field.setAttribute('aria-invalid',String(!ok));error.hidden=ok;error.textContent=ok?'':'Revisa este campo'+(name==='description'?' (mínimo 15 caracteres).':'.');return ok;}
+  Object.keys(rules).forEach(name=>form.elements[name].addEventListener('blur',()=>{if(form.elements[name].value)validate(name);}));
+  $('#tDescription').addEventListener('input',e=>$('#tDescCount').textContent=e.target.value.length+'/500');
+  $('#newTicketBtn').addEventListener('click',()=>{form.scrollIntoView({behavior:'smooth',block:'center'});form.elements.name.focus({preventScroll:true});});
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();if(busy)return;const invalid=Object.keys(rules).filter(name=>!validate(name));if(invalid.length){form.elements[invalid[0]].focus();return;}
+    busy=true;const button=form.querySelector('[type=submit]');button.disabled=true;button.textContent='Guardando y preparando atención IA…';
+    const requestEpoch=epoch;
+    try{
+      const body=Object.fromEntries(Object.keys(rules).map(name=>[name,form.elements[name].value]));
+      const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(body))),fingerprint=Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');
+      try{draftKey=JSON.parse(sessionStorage.getItem('bvHelpdeskDraft')||'null');}catch{}
+      if(!draftKey||draftKey.fingerprint!==fingerprint)draftKey={fingerprint,key:key()};
+      try{sessionStorage.setItem('bvHelpdeskDraft',JSON.stringify(draftKey));}catch{}
+      const data=await api(API,{method:'POST',headers:{'Content-Type':'application/json','x-idempotency-key':draftKey.key},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+      if(requestEpoch!==epoch)return;
+      saveAccess(data.ticket.id,data.accessToken);upsert(data.ticket);draftKey=null;try{sessionStorage.removeItem('bvHelpdeskDraft');}catch{}
+      form.reset();$('#tDescCount').textContent='0/500';Object.keys(rules).forEach(name=>{form.elements[name].removeAttribute('aria-invalid');$('#'+form.elements[name].id+'-err').hidden=true;});
+      render();broadcast();toast(data.ticket.id+' guardada. El agente inicia la atención automáticamente.');await openTicket(data.ticket.id);if(adminPinCache)await load(true);
+    }catch(error){toast(errorText(error));}finally{busy=false;button.disabled=false;button.textContent='Enviar solicitud';}
+  });
+
+  function safeSources(sources){return (sources||[]).map(source=>{try{const url=new URL(source.url);return url.protocol==='https:'&&!url.username&&!url.password?`<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.title||url.hostname)}</a>`:'';}catch{return '';}}).filter(Boolean).join(' · ');}
+  function renderDetail(){
+    if(!detail)return;const t=detail.ticket,messages=detail.messages||[],state=aiState(t),owner=!!ticketTokens[t.id],draft=$('#conversationMessage')?.value||'';
+    const active=['pendiente','analizando'].includes(state),ready=(!!t.ai?.respuesta&&(!t.ai?.processedVersion||t.ai.processedVersion===t.version))||messages.some(m=>m.role==='responsable');
+    dlgBody.innerHTML=`<div class="dlg"><div class="dlg-top"><div><p class="eyebrow">${esc(t.id)}</p><h2 class="h-sm" id="dlgTitle">${esc(t.subject)}</h2></div><button class="icon-btn" type="button" data-hd-close aria-label="Cerrar detalle">${icon('x',20)}</button></div>
+      <div class="chips">${prioPill(t.priority)}${statusPill(t.status)}${pill(stateText[state]||'IA pendiente',state==='fallo'?'danger':t.ai?.escalar?'warn':'info')}</div>
+      <p class="small">Responsable: <b>${esc(t.assignee||'Sin asignar')}</b> · Espera: ${esc(waiting[t.waitingFor]||'Agente IA')}<br>Creada: ${esc(helpDate(t.createdAt))} · Última actividad: ${esc(helpDate(t.updatedAt||t.createdAt))}</p>
+      ${t.ai?.escalar?`<p class="notice">Escalada a una persona: ${esc(t.ai.motivo||'Requiere revisión humana.')}</p>`:''}
+      ${state==='fallo'?'<p class="err" role="status">El intento de IA falló. El mensaje del sistema no se presenta como una respuesta de Gemini. Tu solicitud está guardada.</p>':''}
+      ${active?'<p class="small hd-processing" role="status">El agente de IA está preparando su respuesta…</p>':''}
+      <div class="toolbar"><button class="btn btn-outline btn-sm" type="button" data-refresh-ticket>Actualizar conversación</button>${t.ai?.canRetry&&state!=='analizando'?'<button class="btn btn-outline btn-sm" type="button" data-retry-agent>Reintentar agente IA</button>':''}</div>
+      ${owner?`<details><summary>Mi código privado</summary><div class="field mt"><label for="privateCode">Conserva este código; permite acceder a esta solicitud durante 30 días</label><input class="input" id="privateCode" type="password" readonly value="${esc(ticketTokens[t.id])}"><div class="toolbar"><button class="btn btn-ghost btn-sm" type="button" data-show-code>Mostrar / ocultar</button><button class="btn btn-ghost btn-sm" type="button" data-copy-code>Copiar código</button></div></div></details>`:''}
+      <section aria-label="Conversación de la solicitud"><h3 class="panel-title">Conversación</h3>${older?'<button class="btn btn-ghost btn-sm" type="button" data-older>Cargar mensajes anteriores</button>':''}<ol class="hd-thread">${messages.map(m=>`<li class="hd-message hd-${esc(m.role)}"><p class="small muted">${esc(m.role==='agente'?(m.source==='historico'?'Agente IA · Historial anterior':m.source==='demo'?'Agente IA · Simulación local':'Agente IA · Simulación local'):m.role==='responsable'?'Respuesta humana · '+m.name:m.role==='solicitante'?'Solicitante':'Sistema')} · ${esc(helpDate(m.at))}</p><div class="hd-message-text">${esc(m.text)}</div>${m.tools?.length?`<p class="small muted">Herramientas: ${esc(m.tools.join(' · '))}</p>`:''}${m.sources?.length?`<p class="small">Fuentes: ${safeSources(m.sources)}</p>`:''}</li>`).join('')||`<li class="hd-message"><p>${esc(t.description)}</p></li>`}</ol></section>
+      ${owner&&!active&&(ready||t.status==='Resuelto')?`<div class="hd-feedback"><p class="field-label">¿La solución funcionó?</p><div class="toolbar mt">${t.status!=='Resuelto'?'<button class="btn btn-primary btn-sm" type="button" data-feedback="helpful">Me sirvió · Confirmar solución</button>':''}<button class="btn btn-outline btn-sm" type="button" data-feedback="unresolved">Sigo con el problema${t.status==='Resuelto'?' · Reabrir':''}</button></div></div>`:''}
+      ${t.status!=='Resuelto'?`<form id="conversationForm" class="form"><div class="field"><label for="conversationMessage">${adminPinCache?'Respuesta pública del responsable':'Responder al agente o aportar más información'}</label><textarea class="textarea" id="conversationMessage" maxlength="2000" minlength="3" required ${active?'disabled':''}></textarea></div><button class="btn btn-primary btn-sm" type="submit" ${active?'disabled':''}>${adminPinCache?'Publicar respuesta humana':'Enviar y solicitar respuesta IA'}</button><p class="small muted">Las respuestas humanas se habilitan después de que el agente intente atender la solicitud. No escribas contraseñas ni claves.</p></form>`:''}
+      ${adminPinCache?`<details><summary>Gestión docente</summary><div class="form mt"><div class="field"><label for="ticketAssignee">Responsable actual</label><select class="select" id="ticketAssignee"><option value="">Sin asignar</option>${RESPONSABLES.map(name=>`<option ${name===t.assignee?'selected':''}>${esc(name)}</option>`).join('')}</select></div><button class="btn btn-outline btn-sm" type="button" data-assign>Guardar responsable</button>
+      <button class="btn btn-outline btn-sm" type="button" data-follow>Ver notas internas</button><div id="followBody" class="stack"></div>
+      ${t.status!=='Resuelto'?`<form id="verifyResolutionForm" class="form"><label class="small"><input type="checkbox" id="verifiedResolution" required> Verifiqué que la solicitud fue resuelta</label><div class="field"><label for="resolutionNote">Cómo se comprobó la solución</label><textarea class="textarea" id="resolutionNote" minlength="10" maxlength="500" required></textarea></div><button class="btn btn-outline btn-sm" type="submit">Cerrar con verificación humana</button></form>`:''}
+      <button class="btn btn-danger btn-sm" type="button" data-delete-ticket>Eliminar solicitud</button></div></details>`:''}
+      <p class="err" id="detailError" role="alert" hidden></p><button class="btn btn-outline btn-sm" type="button" data-hd-close>Cerrar detalle</button></div>`;
+    if($('#conversationMessage'))$('#conversationMessage').value=draft;
+  }
+  function schedulePoll(){clearTimeout(poll);if(!detail||!dlg.open||document.hidden||!['pendiente','analizando'].includes(aiState(detail.ticket))||pollCount>=24)return;poll=setTimeout(()=>{pollCount++;refreshDetail(true);},2500);}
+  async function refreshDetail(silent=false){
+    if(!currentId)return;const id=currentId,requestEpoch=epoch,seq=++detailSeq;
+    try{
+      const data=await api(API+'?id='+encodeURIComponent(id),{headers:headers(id)});
+      if(id!==currentId||requestEpoch!==epoch||seq!==detailSeq)return;
+      const signature=JSON.stringify([data.ticket,data.messages]);detail=data;older=data.before;upsert(data.ticket);
+      if(signature!==threadSignature){threadSignature=signature;renderDetail();render();broadcast();}
+      schedulePoll();
+    }catch(error){if(id===currentId&&requestEpoch===epoch){if(!silent)toast(errorText(error));if($('#detailError')){$('#detailError').textContent=errorText(error);$('#detailError').hidden=false;}}}
+  }
+  async function openTicket(id){currentId=id;detail=null;threadSignature='';pollCount=0;dlgBody.innerHTML='<div class="dlg"><p role="status">Cargando conversación privada…</p><button class="btn btn-outline" data-hd-close type="button">Cerrar</button></div>';if(!dlg.open)dlg.showModal();await refreshDetail();}
+  $('#ticketList').addEventListener('click',e=>{const button=e.target.closest('[data-ticket]');if(button)openTicket(button.dataset.ticket);});
+  dlg.addEventListener('close',()=>{clearTimeout(poll);currentId=null;detail=null;detailSeq++;threadSignature='';});
+  dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&dlg.open){pollCount=0;refreshDetail(true);}else clearTimeout(poll);});
+  dlgBody.addEventListener('submit',async e=>{
+    if(!['conversationForm','verifyResolutionForm','followForm'].includes(e.target.id))return;e.preventDefault();const id=currentId,requestEpoch=epoch,button=e.target.querySelector('[type=submit]');if(button)button.disabled=true;
+    try{
+      if(e.target.id==='conversationForm'){
+        const input=$('#conversationMessage'),text=input.value.trim();
+        const messageKey=input.dataset.clientKey&&input.dataset.sentText===text?input.dataset.clientKey:key();input.dataset.clientKey=messageKey;input.dataset.sentText=text;
+        await send(id,{action:'message',message:text,clientKey:messageKey});if(requestEpoch!==epoch||id!==currentId)return;input.value='';
+      }else if(e.target.id==='verifyResolutionForm')await send(id,{estado:'Resuelto',version:detail.ticket.version,verified:$('#verifiedResolution').checked,resolutionNote:$('#resolutionNote').value},'PATCH');
+      else{
+        await api('/api/seguimiento?id='+id.replace('BV-',''),{method:'POST',headers:{...headers(id),'Content-Type':'application/json'},body:JSON.stringify({responsable:$('#followOwner').value,nota:$('#followNote').value})});
+        if(requestEpoch!==epoch||id!==currentId)return;toast('Nota interna guardada.');$('#followNote').value='';await loadInternal(id);return;
+      }
+      if(requestEpoch===epoch&&id===currentId){pollCount=0;threadSignature='';await refreshDetail();if(adminPinCache)await load(true);}
+    }catch(error){if(requestEpoch===epoch&&id===currentId){$('#detailError').hidden=false;$('#detailError').textContent=errorText(error);}}finally{if(button?.isConnected)button.disabled=false;}
+  });
+  async function loadInternal(id){
+    const requestEpoch=epoch;const data=await api('/api/seguimiento?id='+id.replace('BV-',''),{headers:headers(id)});
+    if(id!==currentId||requestEpoch!==epoch||!adminPinCache)return;
+    $('#followBody').innerHTML=`<p class="small muted">Solo acceso docente · estas notas no se envían a Gemini ni al solicitante.</p><ul class="stack">${data.seguimiento.map(n=>`<li class="metric-tile"><b>${esc(n.responsable||'Sin responsable')}</b><p>${esc(n.nota)}</p><span class="small muted">${esc(helpDate(Number(n.fecha)))}</span></li>`).join('')||'<li class="small muted">Sin notas internas.</li>'}</ul><form id="followForm" class="form"><div class="field"><label for="followOwner">Responsable de la nota</label><select class="select" id="followOwner">${RESPONSABLES.map(name=>`<option>${esc(name)}</option>`).join('')}</select></div><div class="field"><label for="followNote">Comentario interno</label><textarea class="textarea" id="followNote" minlength="3" maxlength="500" required></textarea></div><button class="btn btn-outline btn-sm" type="submit">Guardar nota interna</button></form>`;
+  }
+  dlgBody.addEventListener('click',async e=>{
+    const button=e.target.closest('button');if(!button)return;
+    if(button.hasAttribute('data-hd-close')){dlg.close();return;}
+    const id=currentId,requestEpoch=epoch;if(!id||!detail)return;button.disabled=true;
+    try{
+      if(button.hasAttribute('data-show-code')){$('#privateCode').type=$('#privateCode').type==='password'?'text':'password';return;}
+      if(button.hasAttribute('data-copy-code')){try{await navigator.clipboard.writeText(ticketTokens[id]);toast('Código copiado.');}catch{$('#privateCode').type='text';$('#privateCode').select();toast('Selecciona y copia el código con Ctrl+C.');}return;}
+      if(button.hasAttribute('data-refresh-ticket')){pollCount=0;await refreshDetail();return;}
+      if(button.hasAttribute('data-older')){
+        const data=await api(API+'?id='+encodeURIComponent(id)+'&before='+older,{headers:headers(id)});if(requestEpoch!==epoch||id!==currentId)return;
+        const map=new Map([...data.messages,...detail.messages].map(m=>[m.id,m]));detail.messages=[...map.values()];older=data.before;renderDetail();return;
+      }
+      if(button.hasAttribute('data-follow')){await loadInternal(id);return;}
+      if(button.hasAttribute('data-retry-agent'))await api('/api/agente',{method:'POST',headers:{...headers(id),'Content-Type':'application/json'},body:JSON.stringify({id})});
+      else if(button.dataset.feedback)await send(id,{action:'feedback',value:button.dataset.feedback,version:detail.ticket.version},'POST',true);
+      else if(button.hasAttribute('data-assign'))await send(id,{action:'assign',assignee:$('#ticketAssignee').value},'PATCH');
+      else if(button.hasAttribute('data-delete-ticket')){
+        if(!confirm('¿Eliminar '+id+'? Esta acción requiere acceso docente.'))return;
+        await api(API+'?id='+id+'&confirm=yes',{method:'DELETE',headers:headers(id)});if(requestEpoch!==epoch)return;dlg.close();await load();return;
+      }else return;
+      if(requestEpoch===epoch&&id===currentId){pollCount=0;threadSignature='';await refreshDetail();if(adminPinCache)await load(true);}
+    }catch(error){if(requestEpoch===epoch&&id===currentId&&$('#detailError')){$('#detailError').hidden=false;$('#detailError').textContent=errorText(error);}}finally{if(button.isConnected)button.disabled=false;}
+  });
+  window.BioVoltHelpdesk={render,load,summary:()=>({scope:queue.scope,stats:queue.stats})};
+  render();load(true);
 })();
 
 </script>

@@ -1,7 +1,7 @@
 import { mkdir, copyFile, cp, rm, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 // Defensa adicional si un build hook omite el comando ignore de Netlify.
-if (process.env.NETLIFY === 'true' && process.env.BRANCH === 'dev/biovolt-integral') {
+if (process.env.NETLIFY === 'true' && (process.env.BRANCH !== 'main' || process.env.CONTEXT !== 'production')) {
   throw new Error('Rama de revisión: despliegue deshabilitado hasta autorización del propietario.');
 }
 for (const name of await readdir('netlify/functions')) {

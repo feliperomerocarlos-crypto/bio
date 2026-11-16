@@ -1,5 +1,7 @@
 # Registro de cambios
 
+## Fase anterior: mejora integral ya entregada
+
 Base original: `abeb896`. Rama local: `dev/biovolt-integral`.
 
 | Archivo | Motivo |
@@ -36,3 +38,19 @@ El propietario pidió explícitamente «no actives el movimiento reducido; que s
 - `netlify.toml`: omite el build automático solo de `dev/biovolt-integral`.
 - `scripts/build.mjs`: bloqueo adicional de deploy de esta rama cuando se ejecuta en Netlify, incluso si un build hook ignora la regla ignore.
 - README y validación: instrucciones de descarga y revisión, sin tocar main ni solicitar despliegues.
+
+## Mesa de ayuda con IA primero (revisión no subida)
+
+Base main `87a571c`; rama local `dev/mesa-ayuda-agente`. El propietario autorizó los puntos 1–6 y pidió aprobación al finalizar antes de subir a GitHub.
+
+- Se mueve el motor Gemini/herramientas de agente.mjs a lib/helpdesk-agent.mjs para reutilizarlo desde creación/mensajes y reintentos; no se crea otro agente ni se cambian modelos. La ruta existente queda como frontera de autorización.
+- lib/helpdesk-db, store y runner centralizan las transacciones, historial, revisión/lease y cola sin cambiar credenciales o TLS de mysql2.
+- tickets.mjs conserva la ruta y amplía contratos para conversación, confirmación, asignación, métricas y recuperación. seguimiento.mjs valida los tres responsables autorizados.
+- assets/helpdesk.js/css extraen el módulo de la mesa del inline y de enhancements.js. Las otras vistas, paleta, SVG, animaciones y BioVolt Assistant se conservan.
+- sql/mesa_agente_v2.sql añade dos tablas idempotentes sin modificar las originales. No se ejecutó.
+- nodemailer se añade únicamente al backend para recuperación SMTP; no se configura un proveedor ni se envían mensajes reales.
+- Pruebas SQL/transaccionales y navegador integran los handlers reales con servicios externos simulados. No se afirma validación de TiDB/Gemini/SMTP reales.
+- La copia revision/index.html permite probar la interfaz con atención simulada explícita; scripts/build-review.mjs la regenera. No se incluye el adaptador de demostración en dist.
+- La protección de despliegue ahora cubre Deploy Previews y referencias pull/1/head, no solo el nombre de una rama dev.
+
+Ver docs/MESA-AYUDA.md para configuración, seguridad, SQL, cobertura y límites.

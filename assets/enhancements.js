@@ -24,52 +24,6 @@
   }
   showOperations();
 
-  /* Consulta privada. El PIN no se persiste; los códigos se guardan solo en esta pestaña. */
-  $('#ticketStats').insertAdjacentHTML('beforebegin', `<div class="card access-panel">
-    <p class="field-label">Consultar mis solicitudes</p><p class="small muted">Pega tu código privado. Las solicitudes anteriores a esta versión se recuperan con el docente. Los códigos nuevos vencen en 30 días.</p>
-    <form id="accessForm" class="toolbar mt"><label class="sr-only" for="accessCode">Código privado de solicitud</label><input class="input" id="accessCode" autocomplete="off" type="password" placeholder="Código privado"><button class="btn btn-outline btn-sm" type="submit">Consultar</button></form>
-    <div class="toolbar"><button class="btn btn-ghost btn-sm" id="teacherAccess" type="button">Acceso docente</button><button class="btn btn-ghost btn-sm" id="teacherExit" type="button">Salir de docente</button><button class="btn btn-ghost btn-sm" id="forgetAccess" type="button">Olvidar mis códigos</button><span class="small muted" id="accessStatus" role="status">Solo tus solicitudes</span></div>
-  </div>`);
-  $('#accessForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const token = $('#accessCode').value.trim();
-    try {
-      const data = await BioVolt.fetchJSON(TAPI, { headers: { Authorization: 'Bearer ' + token } });
-      if (!data.tickets?.length) throw new Error('La solicitud ya no está disponible.');
-      saveAccess(data.tickets[0].id, token); $('#accessCode').value = ''; await loadRemote(false);
-    } catch (err) { toast(err.message); }
-  });
-  $('#teacherAccess').addEventListener('click', async () => {
-    const pin = prompt('Clave de docente:'); if (!pin) return;
-    try {
-      await BioVolt.fetchJSON(TAPI, { headers: { 'x-admin-pin': pin } });
-      adminPinCache = pin; await loadRemote(false);
-    } catch (err) { toast(err.message); }
-  });
-  $('#teacherExit').addEventListener('click', () => { adminPinCache = null; dlg.close(); loadRemote(false); });
-  $('#forgetAccess').addEventListener('click', () => { ticketTokens = {}; try { sessionStorage.removeItem('bvTicketAccess'); } catch {} dlg.close(); loadRemote(false); });
-  window.addEventListener('biovolt:tickets', () => $('#accessStatus').textContent = adminPinCache ? 'Acceso docente · últimas 100 solicitudes' : 'Solo solicitudes con código privado en esta pestaña');
-
-  $('#tPrio').insertAdjacentHTML('afterend', `<label class="sr-only" for="tCatFilter">Categoría de tickets</label><select class="select" id="tCatFilter" data-ticket-filter><option value="">Todas las categorías</option>${CATS.map(c => `<option>${esc(c)}</option>`).join('')}</select><label class="small">Desde<input class="input" id="tFrom" data-ticket-filter type="date"></label><label class="small">Hasta<input class="input" id="tTo" data-ticket-filter type="date"></label><label class="small"><input id="tEscalated" data-ticket-filter type="checkbox"> Solo escaladas</label>`);
-  [['#tCatFilter','category'],['#tFrom','from'],['#tTo','to'],['#tEscalated','escalated']].forEach(([sel,key]) => $(sel).addEventListener('change', e => { tState[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; renderTickets(); }));
-  dlgBody.addEventListener('click', async e => {
-    if (!e.target.closest('[data-follow]')) return;
-    if (!adminPinCache) { toast('Entra como docente para consultar notas internas.'); return; }
-    const id = currentId;
-    try {
-      const d = await BioVolt.fetchJSON('/api/seguimiento?id=' + encodeURIComponent(id.replace('BV-','')), { headers: accessHeaders(id) });
-      if (currentId !== id || !$('#followBody')) return;
-      $('#followBody').innerHTML = `<ul class="stack">${d.seguimiento.map(n => `<li class="metric-tile"><b>${esc(n.responsable || 'Sin asignar')}</b><p>${esc(n.nota)}</p><span class="small muted">${esc(fmtDate(Number(n.fecha)))}</span></li>`).join('') || '<li class="small muted">Sin notas internas.</li>'}</ul><form id="followForm" class="form"><div class="field"><label for="followOwner">Responsable</label><input class="input" id="followOwner" maxlength="80"></div><div class="field"><label for="followNote">Comentario interno</label><textarea class="textarea" id="followNote" minlength="3" maxlength="500" required></textarea></div><button class="btn btn-outline btn-sm" type="submit">Guardar seguimiento</button></form>`;
-      $('#followForm').addEventListener('submit', async event => {
-        event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true;
-        try {
-          await BioVolt.fetchJSON('/api/seguimiento?id=' + encodeURIComponent(id.replace('BV-','')), { method:'POST', headers:{ ...accessHeaders(id), 'Content-Type':'application/json' }, body:JSON.stringify({ responsable:$('#followOwner').value, nota:$('#followNote').value }) });
-          toast('Seguimiento guardado.'); if (currentId === id) dlgBody.querySelector('[data-follow]').click();
-        } catch (err) { toast(err.message); } finally { button.disabled = false; }
-      });
-    } catch (err) { toast(err.message); }
-  });
-
   /* Inventario por material Y almacén. Nunca compara kg con toneladas. */
   $('#invCount').insertAdjacentHTML('beforebegin', `<label class="sr-only" for="invType">Tipo de biomasa</label><select class="select" id="invType"><option value="">Todos los tipos</option></select><label class="sr-only" for="invWarehouse">Almacén</label><select class="select" id="invWarehouse"><option value="">Todos los almacenes</option></select>`);
   $('#invRows').closest('article').insertAdjacentHTML('afterend', `<div class="card mt"><h2 class="panel-title">Estado del inventario</h2><p class="small muted">Umbral de alerta orientativo elegido por ti; no es un límite operativo de TiDB. Stock expresado en la unidad de la biomasa asociada; confirma esa convención con el esquema real.</p><div class="toolbar mt"><label class="small">Umbral de stock bajo<input class="input" id="stockThreshold" type="number" min="0" step="any" placeholder="Sin configurar"></label><label class="small">Unidad<select class="select" id="stockUnit"><option>kg</option><option>t</option></select></label></div><div id="stockSummary" class="stack" aria-live="polite"></div></div>`);
@@ -173,7 +127,7 @@
       rows.push(['Fuente de producción',analytics.source === 'tidb' ? 'TiDB' : 'Demostración local'],['Periodo',analytics.range.from,analytics.range.to],['Planta',range.plant ? plantName(range.plant) : 'Todas'],['Fecha','Producción (kWh)'],...analytics.daily.map(r=>[String(r.date).slice(0,10),r.kwh]),['Excluidos por unidad desconocida',analytics.current.unknown]);
     } else if(type==='environment') rows.push(['Alcance','Acumulado global; no aplica filtro de producción'],['Indicador','Cantidad','Unidad'],['CO₂ evitado',DB.stats.co2,'t'],['Residuos procesados',DB.stats.waste,'t']);
     else if(type==='inventory') rows.push(['Alcance','Solo filas cargadas y filtros de Inventario; conjunto potencialmente parcial'],['Material','Tipo','Almacén','Stock','Unidad'],...visibleInventory.map(r=>[r.nombre,labelType(r),r.warehouse,r.stock,r.unidad]));
-    else if(type==='tickets') rows.push(['Alcance','Solo solicitudes autorizadas cargadas (hasta 100 para docente); sin información personal'],['Estado','Cantidad'],...STATUSES.map(status=>[status,tickets.filter(t=>t.status===status).length]),['Escaladas',tickets.filter(t=>t.ai?.escalar).length]);
+    else if(type==='tickets') { const summary=window.BioVoltHelpdesk?.summary(); rows.push(['Alcance',summary?.scope==='docente'?'Cola autorizada con filtros aplicados; conteos agregados del servidor':'Solicitudes accesibles con los códigos de esta pestaña'],['Estado','Cantidad'],...STATUSES.map((status,i)=>[status,summary?.stats?Number(summary.stats[['abiertos','proceso','resueltos'][i]]||0):tickets.filter(t=>t.status===status).length]),['Escaladas',summary?.stats?Number(summary.stats.escaladas||0):tickets.filter(t=>t.ai?.escalar).length]); }
     else rows.push(['Fuente','Supuestos introducidos por el usuario; estimaciones, no TiDB'],['Escenario','Biomasa (kg)','Rendimiento (kWh/kg)','Eficiencia (%)','Precio (COP/kWh)','Energía estimada (kWh)','Ingreso bruto estimado (COP)','Fuente de supuestos'],...scenarios.map(r=>[r.type,r.mass,r.yieldKwh,r.efficiency,r.price,r.kwh,r.revenue,r.source]));
     return rows;
   }

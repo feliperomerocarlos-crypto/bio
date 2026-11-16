@@ -1,0 +1,50 @@
+-- BioVolt: evolución no destructiva de la mesa de ayuda.
+-- Revisar/aplicar manualmente en TiDB antes de desplegar esta versión.
+-- No modifica ni elimina solicitudes_ayuda ni seguimiento_ayuda.
+CREATE TABLE IF NOT EXISTS ayuda_control (
+  id_solicitud INT NOT NULL,
+  revision INT NOT NULL DEFAULT 1,
+  revision_ia INT NOT NULL DEFAULT 0,
+  estado_ia VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+  intentos_ia INT NOT NULL DEFAULT 0,
+  lease_token CHAR(36) NULL,
+  lease_hasta DATETIME(3) NULL,
+  reintentar_en DATETIME(3) NULL,
+  error_ia VARCHAR(30) NULL,
+  responsable VARCHAR(80) NOT NULL DEFAULT '',
+  espera VARCHAR(20) NOT NULL DEFAULT 'agente',
+  confirmacion VARCHAR(20) NOT NULL DEFAULT '',
+  inconformidades INT NOT NULL DEFAULT 0,
+  ultima_actividad DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  resuelto_en DATETIME(3) NULL,
+  creation_key CHAR(64) NULL,
+  creation_fingerprint CHAR(64) NULL,
+  creation_hasta DATETIME(3) NULL,
+  recovery_hash CHAR(64) NULL,
+  recovery_hasta DATETIME(3) NULL,
+  recovery_intentos INT NOT NULL DEFAULT 0,
+  recovery_ultimo DATETIME(3) NULL,
+  recovery_ventana DATETIME(3) NULL,
+  recovery_envios INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id_solicitud),
+  UNIQUE KEY uq_ayuda_creation (creation_key),
+  KEY idx_ayuda_cola (estado_ia, ultima_actividad),
+  KEY idx_ayuda_responsable (responsable, espera)
+) DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ayuda_mensajes (
+  id_mensaje BIGINT NOT NULL AUTO_INCREMENT,
+  id_solicitud INT NOT NULL,
+  revision INT NULL,
+  autor VARCHAR(20) NOT NULL,
+  nombre VARCHAR(80) NOT NULL DEFAULT '',
+  contenido TEXT NOT NULL,
+  origen VARCHAR(20) NOT NULL,
+  herramientas TEXT NULL,
+  fuentes TEXT NULL,
+  client_key CHAR(36) NULL,
+  registrado_en DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id_mensaje),
+  UNIQUE KEY uq_ayuda_respuesta (id_solicitud, revision, autor),
+  UNIQUE KEY uq_ayuda_mensaje_cliente (id_solicitud, client_key),
+  KEY idx_ayuda_hilo (id_solicitud, id_mensaje)
+) DEFAULT CHARSET=utf8mb4;

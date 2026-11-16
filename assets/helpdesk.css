@@ -1,0 +1,21 @@
+#view-ayuda .access-panel{gap:12px}
+#view-ayuda #queueFilters{align-items:flex-end}
+#view-ayuda #queueFilters>label{min-width:140px;flex:1}
+#view-ayuda #queueFilters .input,#view-ayuda #queueFilters .select{display:block;width:100%;margin-top:4px}
+#view-ayuda #ticketStats .card{padding:16px}
+#view-ayuda .ticket-pills{max-width:280px;white-space:normal}
+#view-ayuda .ticket-pills .pill{white-space:normal}
+#view-ayuda #ticketPagination{justify-content:space-between}
+#ticketDialog{width:min(760px,calc(100% - 24px))}
+#ticketDialog .dlg{overflow-wrap:anywhere}
+#ticketDialog .hd-thread{display:grid;gap:12px;margin-top:16px}
+#ticketDialog .hd-message{padding:16px;border-radius:var(--radius-field);background:var(--field-bg);border-left:3px solid var(--outline)}
+#ticketDialog .hd-agente{border-left-color:var(--accent-text)}
+#ticketDialog .hd-responsable{border-left-color:var(--tertiary)}
+#ticketDialog .hd-sistema{font-size:14px;color:var(--on-surface-variant);background:var(--info-bg)}
+#ticketDialog .hd-message-text{white-space:pre-wrap;margin:8px 0;overflow-wrap:anywhere}
+#ticketDialog .hd-feedback{padding:16px;border-radius:var(--radius-field);background:var(--info-bg)}
+#ticketDialog .hd-processing::before{content:'';display:inline-block;width:8px;height:8px;margin-right:8px;border-radius:50%;background:var(--accent-text);animation:blink 1s infinite}
+#teacherDialog .dlg{width:100%}
+@media(max-width:733px){#view-ayuda .ticket-pills{max-width:100%}#ticketDialog .toolbar .btn{white-space:normal;max-width:100%}}
+#ticketDialog .hd-thread{padding:0;list-style:none}

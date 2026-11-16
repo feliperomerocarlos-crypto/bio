@@ -1,5 +1,6 @@
 // Comentarios internos y asignación de tickets; acceso exclusivo del docente.
 import mysql from 'mysql2/promise';
+import { RESPONSABLES } from '../../lib/helpdesk-store.mjs';
 import { timingSafeEqual } from 'node:crypto';
 export const config = { path: '/api/seguimiento' };
 let pool;
@@ -37,10 +38,12 @@ export default async (request,context)=>{
     const body=await request.json().catch(()=>({}));
     const nota=String(body.nota??'').trim().slice(0,500);
     const responsable=String(body.responsable??'').trim().slice(0,80);
+    if(!RESPONSABLES.includes(responsable))return out(400,{error:'Selecciona un responsable autorizado.'});
     if(nota.length<3)return out(400,{error:'Escribe una nota de al menos tres caracteres.'});
     const exists=await q('SELECT id FROM solicitudes_ayuda WHERE id=? LIMIT 1',[id]);
     if(!exists.length)return out(404,{error:'No existe la solicitud.'});
     await q('INSERT INTO seguimiento_ayuda(id_solicitud,responsable,nota) VALUES(?,?,?)',[id,responsable,nota]);
+    await q('UPDATE ayuda_control SET ultima_actividad=NOW(3) WHERE id_solicitud=?',[id]);
     return out(201,{ok:true});
   }catch(e){console.error('Seguimiento:',e?.message||e);return out(502,{error:'No se pudo consultar el seguimiento. Comprueba que la tabla seguimiento_ayuda está creada.'});}
 };

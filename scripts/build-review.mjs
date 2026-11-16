@@ -1,0 +1,10 @@
+import {readFile,writeFile} from 'node:fs/promises';
+let html=await readFile('index.html','utf8');
+for(const name of ['enhancements','helpdesk'])html=html.replace(`<link rel="stylesheet" href="assets/${name}.css">`,'<style>\n'+await readFile(`assets/${name}.css`,'utf8')+'\n</style>');
+for(const name of ['core','enhancements','helpdesk'])html=html.replace(`<script src="assets/${name}.js"></script>`,'<script>\n'+await readFile(`assets/${name}.js`,'utf8')+'\n</script>');
+html=html.replace(/\bfetch\s*\(/g,'bioPreviewOffline(');
+html=html.replace('<script>','<script>\n'+await readFile('revision/demo-api.js','utf8')+'\n</script>\n<script>');
+html=html.replaceAll('Respuesta de Gemini','Respuesta IA simulada').replaceAll('Agente IA · Gemini','Agente IA · Simulación local');
+html=html.replace("t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';","t = 'dark';");
+await writeFile('revision/index.html',html);
+console.log('revision/index.html listo: autocontenido, respuestas simuladas claramente identificadas y cero llamadas de red.');

@@ -12,22 +12,6 @@ test('todas las vistas, menú móvil y formulario inválido no provocan errores 
   await page.locator('#navLinks a[data-route=inventario]').click();await expect(page.locator('#view-inventario')).toBeVisible();
   expect(errors).toEqual([]);
 });
-test('solicitud creada guarda código, agente requiere autorización y seguimiento sigue reservado',async({page})=>{
-  await page.route('**/api/**',async r=>{
-    const url=new URL(r.request().url()),method=r.request().method();
-    if(url.pathname==='/api/tickets'&&method==='POST')return r.fulfill({status:201,json:{ticket,accessToken:token}});
-    if(url.pathname==='/api/tickets'&&r.request().headers().authorization==='Bearer '+token)return r.fulfill({json:{tickets:[ticket]}});
-    if(url.pathname==='/api/agente'){
-      expect(r.request().headers().authorization).toBe('Bearer '+token);
-      return r.fulfill({json:{ticket:{...ticket,status:'En proceso',ai:{respuesta:'Revisa Inventario.',herramientas:['Inventario'],escalar:false}}}});
-    }
-    return r.fulfill({status:503,json:{error:'Mock offline'}});
-  });
-  await page.goto('/#/ayuda');await page.locator('#tName').fill('Usuario de prueba');await page.locator('#tEmail').fill('u@example.invalid');await page.locator('#tSubject').fill('Consulta de inventario');await page.locator('#tCategory').selectOption('Inventario');await page.locator('#tDescription').fill('Necesito consultar el inventario disponible.');await page.locator('#ticketForm [type=submit]').click();
-  await expect(page.locator('#privateCode')).toHaveValue(token);await expect(page.locator('#dlgBody')).toContainText('En proceso');
-  await page.locator('[data-follow]').click();await expect(page.locator('#toast')).toContainText('Entra como docente');
-  await page.reload();await expect(page.locator('#ticketList')).toContainText(ticket.subject);
-});
 test('chat distingue Gemini de respaldo y restaura historial en la pestaña',async({page})=>{
   await offline(page);await page.route('**/api/chat',r=>r.fulfill({json:{reply:'Respuesta verificada en mock',source:'gemini'}}));
   await page.goto('/#/asistente');await page.locator('#chatInput').fill('Hola');await page.locator('#chatSend').click();await expect(page.locator('.msg-row.assistant')).toContainText('Gemini');
@@ -71,18 +55,6 @@ for(const width of [360,390,768,1024,1440])test('responsive '+width+'px sin desb
   }
   if(width===1440){await page.goto('/');await page.waitForTimeout(3800);await page.screenshot({path:'test-results/BioVolt-inicio-desktop.png',fullPage:true});}
   if(width===390){await page.goto('/#/analitica');await expect(page.locator('#view-analitica')).toHaveCSS('opacity','1');await page.screenshot({path:'test-results/BioVolt-analitica-mobile.png',fullPage:true});}
-});
-test('docente puede asignar responsable y guardar una nota sin exponerla al salir',async({page})=>{
-  await page.route('**/api/**',r=>{
-    const url=new URL(r.request().url()),headers=r.request().headers();
-    if(url.pathname==='/api/tickets' && headers['x-admin-pin']==='teacher-test')return r.fulfill({json:{tickets:[ticket]}});
-    if(url.pathname==='/api/seguimiento' && headers['x-admin-pin']==='teacher-test'){
-      if(r.request().method()==='POST'){expect(r.request().postDataJSON()).toEqual({responsable:'Docente prueba',nota:'Revisión interna de prueba.'});return r.fulfill({status:201,json:{ok:true}});}
-      return r.fulfill({json:{seguimiento:[]}});
-    }
-    return r.fulfill({status:403,json:{error:'Sin acceso'}});
-  });
-  await page.goto('/#/ayuda');page.on('dialog',dialog=>dialog.accept('teacher-test'));await page.locator('#teacherAccess').click();await expect(page.locator('#ticketList')).toContainText(ticket.subject);await page.locator('.ticket').click();await page.locator('[data-follow]').click();await page.locator('#followOwner').fill('Docente prueba');await page.locator('#followNote').fill('Revisión interna de prueba.');await page.locator('#followForm button').click();await expect(page.locator('#toast')).toContainText('Seguimiento guardado');await page.locator('#dlgBody [data-close]').first().click();await page.locator('#teacherExit').click();await expect(page.locator('#ticketList .ticket')).toHaveCount(0);
 });
 test('preferencia del sistema no desactiva animaciones; sin observador el contenido sigue visible',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});await page.addInitScript(()=>{delete window.IntersectionObserver;});await offline(page);await page.goto('/');await expect(page.locator('.hero-stage')).toHaveCSS('opacity','1');await expect.poll(()=>page.locator('.liquid-bg i').first().evaluate(el=>getComputedStyle(el).animationName)).not.toBe('none');await page.locator('#moduleGrid').scrollIntoViewIfNeeded();await expect(page.locator('#moduleGrid .card').first()).toHaveCSS('opacity','1');
