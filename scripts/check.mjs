@@ -1,8 +1,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
-const html=readFileSync('index.html','utf8');
-for (const [i,match] of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].entries()) new vm.Script(match[1],{filename:'inline-'+i+'.js'});
+for(const path of ['index.html','revision/index.html']){
+ const html=readFileSync(path,'utf8');
+ for(const [i,match] of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].entries())new vm.Script(match[1],{filename:path+'-inline-'+i+'.js'});
+}
 for (const dir of ['assets','lib','netlify/functions']) for (const file of readdirSync(dir)) if (/\.(mjs|js)$/.test(file)) {
   const result=spawnSync(process.execPath,['--check',dir+'/'+file],{stdio:'inherit'}); if(result.status) process.exit(result.status);
 }

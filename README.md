@@ -1,5 +1,9 @@
 # BioVolt AI
 
+## Nueva revisión cinematográfica
+
+La rama de revisión `dev/biovolt-cinematica` incorpora una escena Three.js + GSAP/ScrollTrigger en Inicio, sin cambios de backend. Espiral, hoja y flujo energético responden al scroll y a su retroceso. Incluye alternativa SVG, calidad adaptativa y respeto por movimiento reducido según la instrucción más reciente. Consulta `docs/CINEMATICA.md` para arquitectura, comandos, pruebas y límites. La fusión de esta revisión visual a main y su despliegue requieren autorización del propietario.
+
 Mejoras incrementales sobre `feliperomerocarlos-crypto/bio`. Esta revisión parte de la versión publicada `87a571c`; se conservan las ocho vistas, identidad visual, TiDB, Netlify Functions y ambos sistemas Gemini. La revisión nueva no está publicada.
 
 ## Mesa de ayuda: nueva revisión local
@@ -77,6 +81,6 @@ Mantén las variables actuales. Añade en Functions del proyecto/contexto correc
 - **Inventario:** búsqueda, tipo y almacén. Se muestran todas las filas material/almacén del conjunto cargado. Umbral configurable por unidad y local a la sesión de página, sin persistir límites operativos en TiDB. No se calcula capacidad disponible si no hay unidades comparables verificadas.
 - **Simulador:** todos los parámetros los introduce el usuario, junto con su fuente. Fórmulas y límites visibles; ingreso bruto orientativo en COP, sin afirmar rentabilidad ni validez científica.
 - **Reportes:** CSV con BOM, separador `;` y defensa contra fórmulas de Excel. PDF mediante «Imprimir / Guardar PDF» del navegador, sin servicio externo. Tickets exporta solo conteos del conjunto autorizado, sin datos personales. Inventario exporta solo el conjunto cargado y filtrado.
-- **Movimiento:** IntersectionObserver, CSS y parallax existentes; sin GSAP porque no aporta una ventaja necesaria para esta arquitectura. Por instrucción posterior del propietario, las animaciones permanecen activas incluso si el sistema solicita reducir movimiento. Se mantiene contenido visible si falla el observador.
+- **Movimiento:** IntersectionObserver, CSS y parallax existentes, más GSAP/ScrollTrigger en la nueva escena de Inicio. La nueva instrucción de la revisión cinematográfica vuelve a respetar `prefers-reduced-motion`, incluidas las animaciones existentes. Se mantiene contenido visible si falla el observador.
 
 Los límites de uso son por instancia serverless. Esta versión no incorpora cuentas individuales, revocación individual de códigos ni un límite distribuido; la recuperación por correo está implementada y requiere SMTP; véase `docs/AUTENTICACION.md`.
