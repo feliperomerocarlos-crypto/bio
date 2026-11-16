@@ -1,39 +1,40 @@
-# Validación y pendientes
+# Validación de la revisión de la mesa de ayuda
 
-Versión preparada en rama de revisión `dev/biovolt-integral`, sobre `abeb896`. Fecha de revisión: 15 de noviembre de 2026 (America/Bogota).
+Base publicada: `87a571c`. Rama local: `dev/mesa-ayuda-agente`. Se conserva la versión anterior publicada; no se han subido, fusionado ni desplegado estos cambios. El propietario pidió autorización al terminar antes de subir a GitHub.
 
-## Comprobado localmente
+## Resultado local final
 
-- `npm run check`: sintaxis de los scripts inline, assets, librerías y las cinco funciones.
-- `npm test`: 19 pruebas aprobadas con MySQL y Gemini simulados. Firma, expiración y rotación de códigos; denegación de acceso ajeno; ausencia de secreto impide escribir; PIN; cierre humano; modelos originales; cuotas/timeouts; unidades/periodos; SQL parametrizado; consultas parciales; fórmulas y CSV.
-- `npm run test:browser`: 15 pruebas aprobadas en Chromium con APIs simuladas. Ocho vistas, formulario, creación con código privado, recarga, notas internas, agente, fuentes de chat e historial, filtros, normalización MWh/kWh, simulador, CSV/PDF, responsive 360/390/768/1024/1440 px, animaciones y fallback sin observador. El movimiento sigue activo aunque el sistema solicite reducirlo, según instrucción final del propietario.
-- `npm run build`: bundle estático `dist/`, únicamente HTML y assets; backend/SQL/docs no se copian a la carpeta pública.
-- `git diff --check`: sin errores de espacios/conflictos.
-- PDF de escenario simulado generado en Chromium: un A4 horizontal; leído con pdfinfo/pdftotext. No contiene datos reales.
-- Se inspeccionaron capturas de escritorio y móvil. Se corrigieron desbordamientos de etiquetas sr-only y decoración del hero encontrados durante las pruebas.
+- `npm run check`: aprobado; sintaxis, importaciones y cinco rutas Netlify.
+- `npm test`: 36 pruebas aprobadas, 0 fallidas.
+- `npm run test:browser`: 24 pruebas Chromium aprobadas, 0 fallidas.
+- `npm run build:review` y `npm run build`: aprobados.
+- `git diff --check`: aprobado.
 
-Los logs de cuota, timeout y consultas fallidas de los tests son fallos simulados esperados y verifican que el cliente recibe errores seguros. No representan llamadas externas reales. Las pruebas no prueban el SQL contra un servidor TiDB real.
+Los servicios TiDB, Gemini y SMTP se sustituyeron durante las pruebas. Estos resultados no acreditan conexiones de producción.
 
-## Pendiente antes de publicar (no realizado)
+## Alcance de las pruebas
 
-- [ ] Revisar la rama y autorizar publicación; el propietario autorizó subir esta rama a GitHub; no autorizó merge ni despliegue. La rama de revisión cancela builds automáticos de Netlify y bloquea su build remoto.
-- [ ] Configurar `TICKET_TOKEN_SECRET` aleatorio independiente (mínimo 32 caracteres), `AYUDA_PIN`, `DB_*` y `GEMINI_API_KEY` en Netlify.
-- [ ] Verificar los valores actuales de los overrides Gemini sin cambiarlos automáticamente. Comprobar con documentación oficial y una prueba autorizada la disponibilidad real de los modelos.
-- [ ] Revisar grants: SELECT limitado a tablas operativas; escritura exclusivamente en tablas de soporte necesarias. El código no puede garantizar los privilegios reales del usuario DB.
-- [ ] Confirmar esquema de `solicitudes_ayuda` y sus columnas IA; el repositorio no contiene su migración de creación. Confirmar que `seguimiento_ayuda` existe; si falta, revisar y ejecutar manualmente la migración original no destructiva con autorización.
-- [ ] Validar consultas de producción, mantenimiento y pruebas de eficiencia contra TiDB. Confirmar unidades del stock y moneda del mantenimiento. El coste se muestra sin asumir moneda.
-- [ ] Confirmar zona horaria de fechas/TIMESTAMP en TiDB; la comparación SQL usa las fechas almacenadas. La fecha de generación del reporte usa America/Bogota.
-- [ ] Confirmar bundle y rutas Netlify v2 en el entorno de hosting; la validación local comprueba código y contratos, no el runtime remoto de Netlify.
-- [ ] Ensayo autorizado de acceso docente, consulta privada desde otro navegador, expiración, seguimiento y chat. Tickets previos requieren acceso docente; no hay recuperación por correo ni reemisión automática para solicitudes antiguas.
-- [ ] Configurar, si se necesita, límites persistentes en la plataforma de hosting: los actuales son por instancia, no distribuidos.
-- [ ] Probar Safari/iPhone y Android físicos. Se comprobaron anchos móviles con Chromium en Linux, no navegadores ni dispositivos físicos de esos sistemas.
+- Sintaxis e importaciones reales de scripts inline, assets, librerías y cinco rutas Netlify.
+- Unitarias y contratos sobre handlers reales; MySQL se sustituye por una base SQL de prueba con transacciones y restricciones únicas. Gemini y SMTP se simulan. Se prueban firma y caducidad, autorización, idempotencia, lease/concurrencia, historial y paginación, confirmación/reapertura, responsables, notas privadas, recuperación con expiración/cinco intentos/un solo uso, límites, cuotas y fallos.
+- Chromium con frontend y handlers reales sobre el backend local simulado. Se comprueban creación y atención IA iniciada en servidor, conversación, cierre/reapertura, responsables, notas, recuperación, errores, cola paginada, copia sin conexión y responsive. También se conservan regresiones de navegación, inventario, unidades, chat, simulador, reportes, temas y animaciones activas.
+- Build estático solo de HTML y assets. Se revisa que los archivos SQL, tests, nodemailer, configuración SMTP y backend no se copien al directorio público.
+- Políticas locales de despliegue comprueban que se omiten ramas dev y Deploy Previews, incluso con referencias pull/1/head; un build hook que omita ignore encuentra el bloqueo adicional del build.
 
-## Límites de la entrega
+Los mensajes de error esperados de cuota, timeout, correo fallido o accesos denegados en los logs son simulaciones verificadas, no llamadas a servicios externos.
 
-Se conserva un PIN docente compartido: no equivale a cuentas con roles individuales o auditoría por persona. Códigos privados de portador por 30 días; sin revocación individual. No se conectaron datos privados de clientes/empleados al directorio ni a reportes. Historial del chat en la pestaña, no almacenamiento de conversaciones en el servidor. El simulador no valida científicamente rendimientos; exige supuestos del usuario y muestra fórmula y restricciones.
+## Antes de subir y publicar
 
-Filtros de periodo aplican a producción. Ambiente, mantenimiento y eficiencia de pruebas son acumulados globales claramente señalados: no se inventaron columnas de fechas ni relaciones del esquema ausente. Inventario informa límites de carga y no calcula capacidad disponible con unidades no verificadas. El PDF usa impresión del navegador; la apariencia puede variar entre navegadores.
+- [ ] Autorización del propietario para subir la rama a GitHub; no se ha pedido autorización para merge/despliegue.
+- [ ] Revisar `sql/mesa_agente_v2.sql` y el esquema real de solicitudes_ayuda; aplicar la migración en un entorno autorizado. No se ejecutó DDL ni se leyó/escribió TiDB real.
+- [ ] Confirmar que seguimiento_ayuda existe o aplicar la migración original con autorización.
+- [ ] Conceder SELECT/INSERT/UPDATE sobre ayuda_control y ayuda_mensajes al usuario de runtime; no conceder DDL a las funciones.
+- [ ] Mantener DB_*, GEMINI_API_KEY, AYUDA_PIN y TICKET_TOKEN_SECRET (mínimo obligatorio 32 caracteres). Los modelos Gemini permanecen sin cambios; su disponibilidad real debe verificarse sin sustituirlos.
+- [ ] Configurar SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SUPPORT_FROM y puerto 465/587 en Functions del proyecto y contexto de Netlify correcto. No se envió correo real ni se verificó la entrega del proveedor.
+- [ ] Ensayo autorizado de Gemini y waitUntil en Netlify, cuota, credenciales y tiempos del runtime. Los tests locales no prueban el runtime remoto.
+- [ ] Verificación en Safari/iPhone y Android físicos. Chromium en Linux con anchos móviles no acredita esos dispositivos.
 
-## Entrega de revisión autorizada
+## Limitaciones explícitas
 
-El propietario autorizó subir los cambios a GitHub. Se incluye `revision/index.html`, autocontenido, para descargarlo y abrirlo con doble clic sin producción. Se conserva `main`; no se solicita ningún despliegue. Regla de Netlify verificada según https://docs.netlify.com/build/configure-builds/ignore-builds/ : exit 0 cancela builds automáticos. Como los build hooks pueden omitir ignore, el script de build también rechaza esta rama cuando `NETLIFY=true`.
+El doble SQL adapta funciones MySQL a SQLite: no acredita que la migración/SQL hayan sido ejecutados en TiDB. La recuperación necesita SMTP y falla de forma segura si falta. El PIN docente es compartido y no identifica individualmente a los tres responsables. Los límites por IP son por instancia; los leases, idempotencia y límites de recuperación por ticket sí se persisten. Los códigos privados no tienen revocación individual. waitUntil cuenta dentro del tiempo y facturación de la función; no se incorporó un worker periódico ni se garantiza una respuesta real si Gemini no está disponible. Los fallos se muestran como avisos del sistema y escalamiento, nunca como respuestas de IA inventadas.
+
+La copia revision/index.html se puede probar sin conexiones; sus respuestas y correos son simulados y están etiquetados. El adaptador de demostración no se incluye en dist.

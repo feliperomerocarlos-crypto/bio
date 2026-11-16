@@ -776,6 +776,7 @@ main{padding-top:84px}
 }
 </style>
 <link rel="stylesheet" href="assets/enhancements.css">
+<link rel="stylesheet" href="assets/helpdesk.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2304090C'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23A4E636'/%3E%3Cstop offset='1' stop-color='%234CBF35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(-6 -4) scale(.2)'%3E%3Cpath d='M100 38C150 42 170 94 142 132c-22 26-58 20-70-12C58 82 74 46 100 38Z' fill='url(%23g)'/%3E%3Cpath d='M114 100 92 136h16l-8 32 34-46h-17l12-22z' fill='%2304090C' stroke='%2304090C' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 </head>
 <body>
@@ -993,7 +994,7 @@ main{padding-top:84px}
       <div><p class="eyebrow">Soporte y continuidad</p><h1 class="h-lg">Mesa de ayuda</h1><p class="lead">Centraliza solicitudes, incidentes y requerimientos internos de BioVolt.</p></div>
       <button class="btn btn-primary" type="button" id="newTicketBtn"><span data-icon="plus" data-size="18"></span>Nueva solicitud</button>
     </div>
-    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en TiDB y se consultan con un código privado o acceso docente. Un agente de IA revisa cada una, consulta los datos de BioVolt y responde en pantalla.</span></div>
+    <div class="notice"><span data-icon="info" data-size="18"></span><span>Las solicitudes se guardan en TiDB y se consultan con un código privado o acceso docente. El agente de IA inicia la atención automáticamente, consulta sus herramientas y responde. Si necesita intervención humana, deja el caso escalado y con su motivo.</span></div>
     <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:var(--lg)" id="ticketStats"></div>
     <div class="help-layout">
       <section aria-label="Listado de solicitudes">
@@ -1022,7 +1023,7 @@ main{padding-top:84px}
           <div class="field"><label for="tDescription">Descripción</label><textarea class="textarea" id="tDescription" name="description" maxlength="500" required aria-describedby="tDescription-err tDescCount" placeholder="Cuéntanos qué ocurrió…"></textarea><p class="err" id="tDescription-err" hidden></p><span class="small counter" id="tDescCount">0/500</span></div>
           <button class="btn btn-primary btn-block" type="submit">Enviar solicitud</button>
         </form>
-        <p class="small muted mt">Conserva el código privado que recibirás: permite consultar esta solicitud desde otro equipo. Tu correo se guarda, pero no se muestra a otras personas.</p>
+        <p class="small muted mt">Conserva el código privado para consultar el historial desde otro equipo. Si lo pierdes, podrás verificar el correo registrado cuando el envío de recuperación esté configurado. Tu correo se guarda, pero no se muestra a otras personas.</p>
       </aside>
     </div>
   </div>
@@ -1432,231 +1433,15 @@ function renderAnalytics(){
     `<div class="plant-row"><span class="plant-name">${esc(p.nombre.replace('Planta ', ''))}</span><span class="small muted">${nf2.format(p.capacidad)}</span><div class="track" role="img" aria-label="${esc(p.nombre)}: ${nf2.format(p.capacidad)}"><span style="width:${(+p.capacidad / maxCap * 100).toFixed(0)}%"></span></div></div>`).join('');
 }
 
-/* =====================================================================
-   F. MESA DE AYUDA (persistencia en localStorage)
-   ===================================================================== */
-const TKEY = 'bvTickets_v2';
-const STATUSES = ['Abierto', 'En proceso', 'Resuelto'];
-const hoursAgo = h => Date.now() - h * 3600000;
-const seedTickets = () => [
-  { id:'BV-2041', subject:'No se actualiza el inventario de biomasa', name:'Equipo de Inventario', email:'inventario@biovolt.demo', category:'Inventario', priority:'Alta', status:'En proceso',
-    description:'Después del último cierre, las cantidades de biomasa no se reflejan en el módulo de inventario. Ocurre en varios almacenes.', createdAt:hoursAgo(3) },
-  { id:'BV-2040', subject:'Solicitud de acceso al panel operativo', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Sistemas', priority:'Media', status:'Abierto',
-    description:'Necesito acceso de lectura al panel de operaciones para revisar la producción semanal.', createdAt:hoursAgo(5) },
-  { id:'BV-2039', subject:'Error al generar reporte de producción', name:'Usuario de demostración', email:'usuario@biovolt.demo', category:'Producción', priority:'Baja', status:'Resuelto',
-    description:'El reporte mensual se quedaba cargando al exportar. Se resolvió reiniciando el servicio de reportes.', createdAt:hoursAgo(30) }
-];
-function loadTickets(){
-  try { const a = JSON.parse(store.get(TKEY)); if (Array.isArray(a)) return a; } catch (e) {}
-  return seedTickets();
-}
-let tickets = [];                 // se cargan desde la base de datos (GET /api/tickets)
-const saveTickets = () => {};     // ya no se guarda en el navegador
-const tState = { q:'', status:'Todos', prio:'', category:'', from:'', to:'', escalated:false };
-
-function renderTicketStats(){
-  const c = s => tickets.filter(t => t.status === s).length;
-  $('#ticketStats').innerHTML = STATUSES.map(s => `<div class="card" style="padding:16px 18px"><p class="small muted">${s}${s === 'Abierto' ? 's' : s === 'Resuelto' ? 's' : 's'}</p><div class="stat-value" style="margin:4px 0 0;font-size:30px">${c(s)}</div></div>`).join('');
-}
-function renderTickets(){
-  renderTicketStats();
-  $('#statusFilters').innerHTML = ['Todos', ...STATUSES].map(s => `<button class="chip" type="button" data-s="${s}" aria-pressed="${tState.status === s}">${s}</button>`).join('');
-  const q = norm(tState.q.trim());
-  const arr = tickets.filter(t =>
-    (tState.status === 'Todos' || t.status === tState.status) &&
-    (!tState.prio || t.priority === tState.prio) &&
-    (!tState.category || t.category === tState.category) &&
-    (!tState.escalated || t.ai?.escalar) &&
-    (!tState.from || t.createdAt >= Date.parse(tState.from + 'T00:00:00')) &&
-    (!tState.to || t.createdAt <= Date.parse(tState.to + 'T23:59:59.999')) &&
-    (!q || norm([t.id, t.subject, t.name, t.category].join(' ')).includes(q))
-  ).sort((a, b) => b.createdAt - a.createdAt);
-  $('#ticketCount').textContent = arr.length + ' de ' + tickets.length + (tickets.length === 1 ? ' solicitud' : ' solicitudes');
-  const list = $('#ticketList'), empty = $('#ticketEmpty');
-  list.innerHTML = arr.map(t =>
-    `<button type="button" class="card ticket" data-id="${esc(t.id)}" aria-label="Ver detalle de ${esc(t.id)}: ${esc(t.subject)}">
-       <span class="ticket-main"><span class="ticket-title">${esc(t.subject)}</span><span class="small muted">${esc(t.id)} · ${esc(t.category)} · ${esc(t.name)} · ${esc(fmtDate(t.createdAt))}</span></span>
-       <span class="ticket-pills">${prioPill(t.priority)}${statusPill(t.status)}${aiPill(t)}</span></button>`).join('');
-  if (arr.length) empty.hidden = true;
-  else if (!tickets.length) emptyState(empty, 'inbox', 'Aún no hay solicitudes', 'Cuando registres la primera aparecerá aquí.', 'Crear solicitud', focusForm);
-  else emptyState(empty, 'search', 'Sin resultados', 'Ninguna solicitud coincide con los filtros actuales.', 'Limpiar filtros', () => { tState.q = ''; tState.status = 'Todos'; tState.prio = ''; tState.category = ''; tState.from = ''; tState.to = ''; tState.escalated = false; document.querySelectorAll('[data-ticket-filter]').forEach(el => { el.value = ''; if (el.type === 'checkbox') el.checked = false; }); $('#tSearch').value = ''; $('#tPrio').value = ''; renderTickets(); });
-}
-$('#tSearch').addEventListener('input', e => { tState.q = e.target.value; renderTickets(); });
-$('#tPrio').addEventListener('change', e => { tState.prio = e.target.value; renderTickets(); });
-$('#statusFilters').addEventListener('click', e => {
-  const b = e.target.closest('[data-s]'); if (!b) return;
-  tState.status = b.dataset.s; renderTickets(); $('#statusFilters [aria-pressed="true"]').focus();
-});
-function focusForm(){ $('#ticketForm').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'center' }); setTimeout(() => $('#tName').focus({ preventScroll: true }), 250); }
-$('#newTicketBtn').addEventListener('click', focusForm);
-
-/* --- Formulario con validación --- */
-const RULES = {
-  name:        v => v.trim().length >= 3 || 'Escribe tu nombre (mínimo 3 caracteres).',
-  email:       v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || 'Escribe un correo válido, por ejemplo nombre@empresa.com.',
-  subject:     v => (v.trim().length >= 5 && v.trim().length <= 90) || 'El asunto debe tener entre 5 y 90 caracteres.',
-  category:    v => !!v || 'Selecciona una categoría.',
-  priority:    v => !!v || 'Selecciona una prioridad.',
-  description: v => v.trim().length >= 15 || 'Describe el problema con al menos 15 caracteres.'
-};
-const form = $('#ticketForm');
-function fieldOf(name){ return form.elements[name]; }
-function validateField(name){
-  const el = fieldOf(name), err = $('#' + el.id + '-err'), r = RULES[name](el.value);
-  const ok = r === true;
-  el.setAttribute('aria-invalid', String(!ok));
-  err.textContent = ok ? '' : r; err.hidden = ok;
-  return ok;
-}
-Object.keys(RULES).forEach(n => {
-  const el = fieldOf(n);
-  el.addEventListener('blur', () => { if (el.value || el.getAttribute('aria-invalid') === 'true') validateField(n); });
-  el.addEventListener('input', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
-  el.addEventListener('change', () => { if (el.getAttribute('aria-invalid') === 'true') validateField(n); });
-});
-$('#tDescription').addEventListener('input', e => { $('#tDescCount').textContent = e.target.value.length + '/500'; });
-/* --- Agente IA de la mesa de ayuda (POST /api/agente) --- */
-const CATS = ['Sistemas', 'Inventario', 'Producción', 'Logística', 'Administración', 'Otro'];
-tickets.forEach(x => { if (x.ai && x.ai.pending) delete x.ai; });
-const aiPill = t => !t.ai ? '' : t.ai.pending ? pill('IA revisando…', 'info') : t.ai.error ? '' : t.ai.escalar ? pill('Escalada a una persona', 'warn') : pill('Respondida por IA', 'ok');
-function aiBlock(t){
-  const a = t.ai, ask = (txt) => `<button class="btn btn-ghost btn-sm" type="button" data-ai>${txt}</button>`;
-  let body;
-  if (!a) body = `<p class="small muted" style="margin-bottom:10px">Un agente de IA puede revisar esta solicitud, consultar los datos de BioVolt y responder.</p>${ask('Pedir respuesta al agente IA')}`;
-  else if (a.pending) body = `<p class="muted">El agente está consultando los datos…</p>`;
-  else if (a.error) body = `<p class="err" style="margin-bottom:10px">El agente no pudo responder ahora. Puedes intentarlo de nuevo.</p>${ask('Reintentar')}`;
-  else body = `<div class="desc-box">${esc(a.respuesta)}</div>
-    <p class="small muted" style="margin-top:8px">${a.herramientas && a.herramientas.length ? 'Consultó: ' + esc(a.herramientas.join(' · ')) + '. ' : 'No necesitó consultar datos. '}Categoría: ${esc(t.category)} · Prioridad: ${esc(t.priority)}.</p>
-    ${a.escalar ? `<p class="small" style="margin-top:6px;color:var(--warn)">Requiere a una persona${a.motivo ? ': ' + esc(a.motivo) : '.'}</p>` : ''}
-    <div style="margin-top:10px">${ask('Volver a consultar')}</div>`;
-  return `<div><p class="field-label" style="margin-bottom:6px">Respuesta del agente IA</p>${body}</div>`;
-}
-/* --- Solicitudes en la base de datos (/api/tickets) --- */
-const TAPI = '/api/tickets';
-let adminPinCache = null;
-let ticketTokens = {};
-try { ticketTokens = JSON.parse(sessionStorage.getItem('bvTicketAccess') || '{}'); if (!ticketTokens || Array.isArray(ticketTokens) || typeof ticketTokens !== 'object') ticketTokens = {}; } catch { ticketTokens = {}; }
-function saveAccess(id, token){
-  ticketTokens[id] = token;
-  ticketTokens = Object.fromEntries(Object.entries(ticketTokens).slice(-20));
-  try { sessionStorage.setItem('bvTicketAccess', JSON.stringify(ticketTokens)); } catch {}
-}
-function accessHeaders(id){ return adminPinCache ? { 'x-admin-pin': adminPinCache } : { Authorization: 'Bearer ' + (ticketTokens[id] || '') }; }
-async function loadRemote(silent){
-  try {
-    const pending = new Map(tickets.filter(t => t.ai?.pending).map(t => [t.id, t.ai]));
-    let loaded;
-    if (adminPinCache) loaded = (await BioVolt.fetchJSON(TAPI, { headers: accessHeaders() })).tickets;
-    else {
-      const results = await Promise.allSettled(Object.keys(ticketTokens).map(id => BioVolt.fetchJSON(TAPI, { headers: accessHeaders(id) })));
-      loaded = results.flatMap(r => r.status === 'fulfilled' ? r.value.tickets : []);
-      if (results.some(r => r.status === 'rejected') && !silent) toast('Algunos códigos han vencido o el servicio no está disponible.');
-    }
-    tickets = loaded.map(t => pending.has(t.id) ? { ...t, ai: pending.get(t.id) } : t);
-  } catch (err) { if (err.status === 403) { adminPinCache = null; tickets = []; } if (!silent) toast(err.message); }
-  renderTickets(); renderAnalytics();
-  window.dispatchEvent(new Event('biovolt:tickets'));
-}
-async function adminCall(method, t, body){
-  if (!adminPinCache) adminPinCache = prompt('Clave de docente para esta acción:');
-  if (!adminPinCache) return false;
-  try {
-    const res = await fetch(TAPI + '?id=' + encodeURIComponent(t.id), { method, headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPinCache }, body: body ? JSON.stringify(body) : undefined });
-    const d = await res.json().catch(() => ({}));
-    if (res.status === 403) { adminPinCache = null; toast(d.error || 'Clave incorrecta'); return false; }
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    window.dispatchEvent(new Event('biovolt:tickets'));
-    return d;
-  } catch (err) { console.error(err); toast('No se pudo completar la acción'); return false; }
-}
-async function askAgent(t){
-  t.ai = { pending: true }; renderTickets(); if (currentId === t.id) renderDialog(t);
-  try {
-    const res = await fetch('/api/agente', { method: 'POST', headers: { 'Content-Type': 'application/json', ...accessHeaders(t.id) }, signal: AbortSignal.timeout(18000), body: JSON.stringify({ id: t.id }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    Object.assign(t, d.ticket);
-    toast(t.id + ' revisada por IA; el cierre requiere verificación humana.');
-  } catch (err) { t.ai = { error: true }; console.error('Agente IA:', err); toast('El agente no pudo responder ahora'); }
-  renderTickets(); renderAnalytics(); if (currentId === t.id) renderDialog(t);
-}
-
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const results = Object.keys(RULES).map(n => [n, validateField(n)]);
-  const bad = results.find(r => !r[1]);
-  if (bad) { fieldOf(bad[0]).focus(); return; }
-  const btn = form.querySelector('[type=submit]'); btn.disabled = true;
-  try {
-    const res = await fetch(TAPI, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      name: fieldOf('name').value, email: fieldOf('email').value, subject: fieldOf('subject').value,
-      category: fieldOf('category').value, priority: fieldOf('priority').value, description: fieldOf('description').value }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
-    const t = d.ticket; saveAccess(t.id, d.accessToken); tickets.unshift(t);
-    form.reset(); $('#tDescCount').textContent = '0/500';
-    $$('[aria-invalid]', form).forEach(el => el.removeAttribute('aria-invalid'));
-    $$('.err', form).forEach(p => { p.hidden = true; p.textContent = ''; });
-    tState.q = ''; tState.status = 'Todos'; tState.prio = ''; tState.category = ''; tState.from = ''; tState.to = ''; tState.escalated = false; document.querySelectorAll('[data-ticket-filter]').forEach(el => { el.value = ''; if (el.type === 'checkbox') el.checked = false; }); $('#tSearch').value = ''; $('#tPrio').value = '';
-    renderTickets(); renderAnalytics();
-    toast('Solicitud ' + t.id + ' registrada');
-    openTicket(t.id);
-    askAgent(t);
-  } catch (err) { console.error(err); toast('No se pudo registrar: ' + (err.message || 'error')); }
-  finally { btn.disabled = false; }
-});
-
-/* --- Detalle de solicitud (diálogo) --- */
+/* Mesa de ayuda: implementación en assets/helpdesk.js; estado compartido con analítica. */
+let tickets = [];
+const STATUSES = ['Abierto','En proceso','Resuelto'];
+const CATS = ['Sistemas','Inventario','Producción','Logística','Administración','Otro'];
+let adminPinCache = null, ticketTokens = {};
 const dlg = $('#ticketDialog'), dlgBody = $('#dlgBody');
-let currentId = null, delTimer;
-function renderDialog(t){
-  dlgBody.innerHTML = `<div class="dlg">
-    <div class="dlg-top"><div><p class="eyebrow">${esc(t.id)}</p><h2 class="h-sm" id="dlgTitle" style="font-size:24px;margin-top:2px;overflow-wrap:anywhere">${esc(t.subject)}</h2></div>
-      <button class="icon-btn" type="button" data-close aria-label="Cerrar detalle">${icon('x', 20)}</button></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">${prioPill(t.priority)}${statusPill(t.status)}${aiPill(t)}</div>
-    <dl class="dl">
-      <div><dt>Solicitante</dt><dd>${esc(t.name)}</dd></div><div><dt>Correo</dt><dd>${esc(t.email)}</dd></div>
-      <div><dt>Categoría</dt><dd>${esc(t.category)}</dd></div><div><dt>Registrada</dt><dd>${esc(fmtDate(t.createdAt))}</dd></div>
-    </dl>
-    <div><p class="field-label" style="margin-bottom:6px">Descripción</p><div class="desc-box">${esc(t.description)}</div></div>
-    ${ticketTokens[t.id] ? `<div class="field"><label for="privateCode">Código privado (vence en 30 días; guárdalo para otro equipo)</label><input class="input" id="privateCode" readonly value="${esc(ticketTokens[t.id])}"><p class="small muted">Quien tenga este código puede consultar este ticket y pedir una revisión IA. No lo compartas públicamente.</p></div>` : ''}
-    ${aiBlock(t)}
-    <div><button class="btn btn-outline btn-sm" type="button" data-follow>Seguimiento interno · Docente</button><div id="followBody" class="stack mt"></div></div>
-    <div><p class="field-label" id="stLabel" style="margin-bottom:8px">Cambiar estado</p>
-      <div class="seg-group" role="group" aria-labelledby="stLabel">${STATUSES.map(s => `<button type="button" class="seg${s === t.status ? ' on' : ''}" data-status="${s}" aria-pressed="${s === t.status}">${s}</button>`).join('')}</div></div>
-    <div class="dlg-actions"><button class="btn btn-danger btn-sm" type="button" data-del>${icon('trash', 16)}Eliminar</button><button class="btn btn-outline btn-sm" type="button" data-close>Cerrar</button></div>
-  </div>`;
-}
-function openTicket(id){
-  const t = tickets.find(x => x.id === id); if (!t) return;
-  currentId = id; renderDialog(t);
-  if (!dlg.open) dlg.showModal();
-}
-$('#ticketList').addEventListener('click', e => { const b = e.target.closest('.ticket'); if (b) openTicket(b.dataset.id); });
-dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
-dlg.addEventListener('close', () => { currentId = null; clearTimeout(delTimer); });
-dlgBody.addEventListener('click', e => {
-  if (e.target.closest('[data-close]')) { dlg.close(); return; }
-  const t = tickets.find(x => x.id === currentId); if (!t) return;
-  if (e.target.closest('[data-ai]')) { askAgent(t); return; }
-  const sb = e.target.closest('[data-status]');
-  if (sb) {
-    if (t.status !== sb.dataset.status) {
-      adminCall('PATCH', t, { estado: sb.dataset.status }).then(d => { if (d) { t.status = d.ticket.status; renderTickets(); renderAnalytics(); renderDialog(t); toast(t.id + ' → ' + t.status); } });
-    }
-    const again = dlgBody.querySelector('[data-status="' + t.status + '"]'); if (again) again.focus();
-    return;
-  }
-  const del = e.target.closest('[data-del]');
-  if (del) {
-    if (!del.dataset.confirm) {
-      del.dataset.confirm = '1'; del.textContent = '¿Confirmar eliminación?';
-      clearTimeout(delTimer); delTimer = setTimeout(() => { if (currentId) renderDialog(t); }, 4000);
-    } else {
-      adminCall('DELETE', t).then(d => { if (d) { tickets = tickets.filter(x => x.id !== t.id); dlg.close(); renderTickets(); renderAnalytics(); toast(t.id + ' eliminada'); } });
-    }
-  }
-});
+let currentId = null;
+function renderTickets(){ window.BioVoltHelpdesk?.render(); }
+function loadRemote(silent){ return window.BioVoltHelpdesk?.load(silent); }
 
 /* =====================================================================
    G. ASISTENTE IA (simulado)
@@ -2026,5 +1811,6 @@ setInterval(() => { if (!document.hidden && !dlg.open && location.hash === '#/ay
 
 </script>
 <script src="assets/enhancements.js"></script>
+<script src="assets/helpdesk.js"></script>
 </body>
 </html>

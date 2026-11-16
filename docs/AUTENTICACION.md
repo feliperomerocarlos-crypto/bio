@@ -1,42 +1,23 @@
-# Autenticación y flujo de credenciales
+# Acceso y privacidad de BioVolt
 
-## Componentes
+La plataforma mantiene un PIN docente compartido y capacidades firmadas por ticket. No incorpora cuentas personales, JWT, OAuth ni una sesión autenticada por cada responsable. Seleccionar José Montalvo, Cristopher Orozco o Carlos Romero asigna responsabilidad; no acredita quién escribió usando el PIN compartido.
 
-La plataforma no usa JWT, OAuth, cookies de sesión ni cuentas individuales. Conserva un PIN docente y añade una capacidad firmada por ticket. Código: `lib/access.mjs`, `index.html` (accessHeaders/adminCall/loadRemote), `assets/enhancements.js` (acceso y seguimiento).
+`TICKET_TOKEN_SECRET` vive solo en backend y requiere **mínimo obligatorio 32 caracteres** (64 aleatorios recomendado). Los códigos de ticket usan HMAC-SHA256, ámbito `biovolt-ticket-v1`, ID, caducidad de 30 días y nonce. Se almacenan en sessionStorage de la pestaña; no se ponen en URLs. Los códigos anteriores válidos conservan compatibilidad.
 
-| Ruta | Método | Autorización |
-|---|---|---|
-| `/api/data` | GET | Público, consultas fijas y agregadas. |
-| `/api/chat` | POST | Público; límite por IP e instancia. |
-| `/api/tickets` | POST | Público con validación; requiere secreto de firma configurado en backend. |
-| `/api/tickets` | GET | PIN: hasta 100 tickets. Bearer: solo ticket de la firma. Sin credenciales: 403. |
-| `/api/tickets?id=…` | PATCH/DELETE | PIN docente. |
-| `/api/agente` | POST | PIN o Bearer válido correspondiente al ID solicitado. |
-| `/api/seguimiento?id=…` | GET/POST | PIN docente; nunca un código del solicitante. |
+| Acceso | Facultades |
+|---|---|
+| Visitante | Crear solicitud validada; iniciar recuperación con ticket/correo, sin obtener datos hasta verificar el código recibido. |
+| Código privado | Ver y continuar la conversación de su ticket, reintentar IA, confirmar solución o reabrir el mismo caso. No lee notas internas ni otras solicitudes. |
+| PIN docente | Cola completa filtrada y paginada, responsables, respuestas humanas después del intento IA, notas internas y cierre verificado. El PIN no sustituye la confirmación del solicitante. |
 
-## Solicitud nueva y seguimiento
+El código es de portador: quien lo tenga puede acceder al ticket. No se revoca individualmente. Rotar TICKET_TOKEN_SECRET invalida todos los códigos; recuperar por correo emite uno nuevo sin invalidar los anteriores antes de su vencimiento. No se permite acceder solo por conocer un ID, un nombre o un correo.
 
-1. Navegador → POST `/api/tickets` con formulario validado; nunca envía credenciales TiDB/Gemini.
-2. Backend → INSERT parametrizado en TiDB. Se devuelve ticket y `accessToken`.
-3. El código contiene payload base64url `{id,exp,nonce}` y HMAC-SHA256, con dominio `biovolt-ticket-v1:`. No contiene correo, nombre ni credenciales. Caduca a los 30 días. La firma usa exclusivamente `TICKET_TOKEN_SECRET`, independiente del PIN.
-4. Se almacena solo el mapa ID/código en `sessionStorage`. El solicitante lo puede copiar; no se pone en URLs, query strings, logs o CSV.
-5. Navegador → GET `/api/tickets` con `Authorization: Bearer …`. El backend valida firma y fecha antes de ejecutar SELECT limitado a ese ID.
-6. POST `/api/agente` debe acreditar ese mismo ticket. Gemini recibe asunto/descripción/categoría/prioridad, no las columnas de nombre o correo. El texto libre puede incluir información escrita por el solicitante; no debe introducirse información sensible.
-7. El agente conserva herramientas de lectura y búsqueda. Guarda su respuesta/clasificación; mantiene «En proceso» o conserva un cierre humano previo. Solo PATCH docente puede cerrar.
+La recuperación compara el correo guardado y envía un código aleatorio de seis dígitos al destinatario registrado. Solo se guarda su HMAC (`biovolt-recovery-v1`), caduca en 10 minutos, permite cinco intentos y un solo uso. Hay límite persistente por ticket de un envío/minuto y cinco/hora. La respuesta a la solicitud es genérica para no revelar si el ticket/correo existen. SMTP debe configurarse en Netlify; no se registran códigos ni destinatarios en los logs de la aplicación.
 
-Un código es una credencial de portador: quien lo posea accede al ticket. Su pérdida no habilita recuperación por email ni por ID. El docente puede revisar solicitudes antiguas o cuyo código venció. La rotación del secreto invalida todos los códigos anteriores; no hay revocación individual sin persistencia adicional.
+La autorización se comprueba en las funciones, no solo en la interfaz. GET de detalle devuelve únicamente mensajes públicos; seguimiento_ayuda permanece en la ruta docente separada. El agente recibe asunto, descripción y hasta 12 mensajes públicos acotados; nunca se añade el correo ni las notas internas. El texto libre puede contener datos escritos por el usuario, por lo que el formulario pide no introducir contraseñas ni claves. La búsqueda técnica filtra patrones obvios de datos privados, pero no se presenta como prevención infalible de filtraciones.
 
-## Acceso docente
+Las respuestas privadas llevan `Cache-Control: no-store`. El PIN solo vive en memoria y se introduce en un campo de contraseña. Los secretos `DB_*`, `GEMINI_API_KEY`, TICKET_TOKEN_SECRET y SMTP_* no están en el frontend. TiDB conserva mysql2/promise y TLS mínimo 1.2; Gemini recibe su clave en x-goog-api-key desde el backend.
 
-Se solicita el PIN y se envía en `x-admin-pin` bajo HTTPS. El navegador lo conserva solo en `adminPinCache` (memoria); salir o recargar lo elimina. El backend compara usando `timingSafeEqual`; seguimiento mantiene la comparación segura original. Un 403 elimina el PIN cacheado en las operaciones de tickets. No hay roles separados ni trazabilidad de personas que comparten un PIN.
+Los límites IP son por instancia serverless, no globales. Concurrencia y reintentos de IA se coordinan en TiDB mediante una lease y revisión; los duplicados no se confían a un Map de una instancia. La creación usa UUID de idempotencia y fingerprint, con reenvío idéntico durante 15 minutos. No se usa ese UUID como acceso general al ticket.
 
-## Servicios externos
-
-- TiDB: credenciales `DB_*` solo en Netlify; `mysql2/promise`, TLS mínimo 1.2, consultas fijas con parámetros para entradas.
-- Gemini: `GEMINI_API_KEY` solo en backend; cabecera `x-goog-api-key` al endpoint oficial REST. No se devuelve la clave al cliente. Los modelos originales se conservan.
-- El chat envía un resumen acotado de tablas operativas, sin clientes/empleados. Historial enviado por el cliente se limita a 12 entradas; no es historial firmado ni prueba de identidad.
-- Respuestas privadas usan `Cache-Control: no-store`. Los errores públicos no devuelven detalles internos del proveedor.
-
-## Alcance real de seguridad
-
-Los límites de IP son contadores en memoria de cada instancia; no sustituyen controles distribuidos del proveedor. La búsqueda de internet conserva la instrucción original de usar consultas técnicas sin datos personales, pero no constituye un sistema verificado de prevención de filtraciones por texto libre. No se verificaron grants reales, variables de Netlify ni configuración de caché externa. La web pública sirve solo `dist/`, no la raíz del repositorio.
+Detalles de configuración, rutas y migración en `MESA-AYUDA.md`. No se han probado credenciales, grants, entrega SMTP ni conexiones reales durante esta revisión.

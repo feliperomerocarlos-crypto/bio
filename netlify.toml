@@ -1,6 +1,6 @@
 [build]
   # Omitir los builds automáticos de la rama de revisión.
-  ignore = 'test "$BRANCH" = "dev/biovolt-integral"'
+  ignore = "node scripts/ignore-build.mjs"
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"

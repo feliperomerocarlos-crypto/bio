@@ -1,13 +1,13 @@
-# Ver BioVolt antes de publicar
+# Revisar la mesa de ayuda sin publicar
 
-Esta carpeta contiene una copia de revisión del index, con sus estilos y scripts incluidos. No necesita instalar Node, configurar secretos ni conectar las API.
+Esta copia incluye los estilos y scripts. No instala paquetes, no envía datos a la red y no usa Gemini ni SMTP reales.
 
-1. En GitHub, selecciona la rama `dev/biovolt-integral`.
-2. Pulsa **Code → Download ZIP**.
-3. Extrae el ZIP en tu computador.
-4. Abre la carpeta `revision` y haz doble clic en `index.html`.
-5. Usa Chrome, Edge, Firefox o Safari actual. Navega por el menú superior.
+1. Abre `revision/index.html` con un navegador actual.
+2. Ve a **Mesa de ayuda** y crea una solicitud con datos ficticios.
+3. Prueba el historial, nuevos mensajes, «Me sirvió» y «Sigo con el problema».
+4. En **Acceso docente** usa el PIN de demostración **DEMO**. Puedes asignar José Montalvo, Cristopher Orozco o Carlos Romero, responder como humano y añadir notas internas.
+5. Para probar recuperación, usa el ID y el correo ficticio de un ticket creado aquí. El código de prueba es **123456**. No se envía ningún correo.
 
-Las cifras son demostrativas. El simulador y los filtros se pueden probar localmente; Gemini y el guardado de tickets están desconectados. El chat usa una respuesta local identificada como respaldo. Las animaciones permanecen activas, como solicitó el propietario.
+Las respuestas del agente están marcadas explícitamente como simulación; no proceden de Gemini. Los tickets de esta copia se pierden al recargar. Los códigos y PIN de demostración no funcionan en la plataforma real.
 
-Esta copia es para revisar el diseño. La versión completa con backend está en la raíz del repositorio; no sustituyas el sitio de producción únicamente por esta carpeta.
+La versión de producción con agente real está en la raíz del proyecto. Esta carpeta es solo para revisión y no debe reemplazar por sí sola el despliegue completo. Antes de publicar la mejora, revisar `docs/MESA-AYUDA.md`, aplicar la migración con autorización y configurar SMTP si se requiere recuperación por correo.
