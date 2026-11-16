@@ -12,6 +12,7 @@
    Prioridad: elección guardada > preferencia del sistema > claro (menta de la dirección de arte). */
 (function () {
   document.documentElement.classList.add('js');
+  try { var motion=localStorage.getItem('bvMotionPreference'); if(['system','full','off'].includes(motion)) document.documentElement.dataset.bvMotion=motion; } catch(e) {}
   var t = null;
   try { t = localStorage.getItem('bvTheme'); } catch (e) {}
   if (t !== 'light' && t !== 'dark') {
@@ -839,6 +840,7 @@ main{padding-top:84px}
         <div class="bv-cinema__beat" aria-hidden="true"><p class="bv-cinema__kicker">03 · La transformación</p><p class="bv-cinema__line">La naturaleza<br>es energía.</p></div>
         <div class="bv-cinema__beat"><p class="bv-cinema__kicker">04 · El futuro</p><h2 class="bv-cinema__brand" id="cinematicTitle">BIOVOLT</h2><p class="bv-cinema__message">Transformamos biomasa en energía para el futuro.</p></div>
       </div>
+      <div class="bv-cinema__motion"><label for="bvMotion">Movimiento</label><select id="bvMotion" data-cinema-motion disabled><option value="system">Según mi dispositivo</option><option value="full">Activado</option><option value="off">En pausa</option></select><p data-cinema-status role="status">Abre este archivo en un navegador con JavaScript para ver las animaciones.</p></div>
       <div class="bv-cinema__footer"><button class="bv-cinema__skip" type="button" data-cinema-skip>Explorar la plataforma <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M3 13 13 3M3 3h10v10"/></svg></button><div class="bv-cinema__guide" aria-hidden="true"><span>Desplázate para transformar</span><span class="bv-cinema__rail"><i></i></span><span class="bv-cinema__number">01 / 04</span></div></div>
     </div>
   </section>
@@ -1180,7 +1182,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', 
 const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // Preferencia explícita del propietario: mantener animaciones activas.
-const reduceMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = () => document.documentElement.dataset.bvMotion === 'off' || (document.documentElement.dataset.bvMotion !== 'full' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 let dataSource = 'demo';
 let liveMetadata = null;
 const store = {

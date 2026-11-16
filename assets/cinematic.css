@@ -38,12 +38,22 @@
 }
 /* La instrucción más reciente del propietario vuelve a respetar esta preferencia. */
 @media(prefers-reduced-motion:reduce){
- html{scroll-behavior:auto!important}
- *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
- .rv,[data-rise]{opacity:1!important;transform:none!important;filter:none!important}
- .bv-cinema[data-state="active"]{height:100svh}
+ html:not([data-bv-motion="full"]){scroll-behavior:auto!important}
+ html:not([data-bv-motion="full"]) *,html:not([data-bv-motion="full"]) *::before,html:not([data-bv-motion="full"]) *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+ html:not([data-bv-motion="full"]) .rv,html:not([data-bv-motion="full"]) [data-rise]{opacity:1!important;transform:none!important;filter:none!important}
+ html:not([data-bv-motion="full"]) .bv-cinema[data-state="active"]{height:100svh}
 }
+html[data-bv-motion="off"] *,html[data-bv-motion="off"] *::before,html[data-bv-motion="off"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html[data-bv-motion="off"] .rv,html[data-bv-motion="off"] [data-rise]{opacity:1!important;transform:none!important;filter:none!important}
+.bv-cinema__motion{position:absolute;bottom:125px;left:max(6vw,24px);z-index:4;max-width:400px;color:#b8cebe;font-size:12px}
+.bv-cinema__motion label{margin-right:12px}
+.bv-cinema__motion select{background:#0a1710;color:#eaf5ec;border:1px solid #73977c80;border-radius:18px;padding:8px 12px;font:inherit}
+.bv-cinema__motion select:focus-visible{outline:2px solid #a4e636;outline-offset:3px}
+.bv-cinema__motion p{font-size:11px;line-height:1.4;max-width:330px;margin:10px 0 0}
+@media(max-width:640px){.bv-cinema__motion{left:24px;bottom:155px;max-width:calc(100% - 48px)}}
 .bv-cinema__guide[hidden]{display:none}
 .bv-cinema__skip{display:inline-flex;align-items:center;gap:12px}
 body.bv-cinema-in-frame #siteNav{--logo-ink:#fff;--on-surface:#eff9ee;--on-surface-variant:#b8cebe;--on-surface-strong:#eff9ee;--muted-bg:#7aab7b22;background:#08130dbd;border-color:#62846c66;color:#eff9ee}
 body.bv-cinema-in-frame #siteNav.open .nav-links{background:#0a1710}
+/* Un contenedor transformado durante la entrada desplaza las medidas del scroll. */
+#view-inicio{animation:none;transform:none}

@@ -2,7 +2,7 @@
 
 ## Nueva revisión cinematográfica
 
-La rama de revisión `dev/biovolt-cinematica` incorpora una escena Three.js + GSAP/ScrollTrigger en Inicio, sin cambios de backend. Espiral, hoja y flujo energético responden al scroll y a su retroceso. Incluye alternativa SVG, calidad adaptativa y respeto por movimiento reducido según la instrucción más reciente. Consulta `docs/CINEMATICA.md` para arquitectura, comandos, pruebas y límites. La fusión de esta revisión visual a main y su despliegue requieren autorización del propietario.
+La rama de revisión `dev/biovolt-cinematica` incorpora una escena Three.js + GSAP/ScrollTrigger en Inicio, sin cambios de backend. Espiral, hoja y flujo energético responden al scroll y a su retroceso. Incluye calidad adaptativa, alternativa animada Canvas 2D sin WebGL y SVG estático como último respaldo. El selector Movimiento permite activar o pausar explícitamente; sin elección propia respeta el movimiento reducido del sistema. Consulta `docs/CINEMATICA.md` para arquitectura, comandos, pruebas y límites. La fusión de esta revisión visual a main y su despliegue requieren autorización del propietario.
 
 Mejoras incrementales sobre `feliperomerocarlos-crypto/bio`. Esta revisión parte de la versión publicada `87a571c`; se conservan las ocho vistas, identidad visual, TiDB, Netlify Functions y ambos sistemas Gemini. La revisión nueva no está publicada.
 

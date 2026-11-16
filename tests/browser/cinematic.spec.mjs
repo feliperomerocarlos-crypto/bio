@@ -24,18 +24,18 @@ test('movimiento reducido no carga WebGL y permite entrar directamente a la plat
 test('cambiar la preferencia en ejecución detiene y reconstruye la escena',async({page})=>{
  await page.goto('/');await ready(page);await page.emulateMedia({reducedMotion:'reduce'});await expect.poll(async()=>(await inspect(page)).mode).toBe('reduced');expect((await inspect(page)).resources).toBe(0);const frames=(await inspect(page)).frames;await page.waitForTimeout(150);expect((await inspect(page)).frames).toBe(frames);await page.emulateMedia({reducedMotion:'no-preference'});await ready(page);
 });
-test('sin motor o sin WebGL queda una alternativa legible, sin bloquear navegación',async({page})=>{
- await page.route('**/cinematic-engine.js',r=>r.abort());await page.goto('/');await expect.poll(async()=>(await inspect(page))?.mode).toBe('fallback');await expect(page.locator('#cinematicTitle')).toBeVisible();await page.locator('[data-cinema-skip]').click();await expect(page.locator('#heroTitle')).toBeInViewport({timeout:10000});await page.goto('/#/asistente');await expect(page.locator('#chatInput')).toBeVisible();
+test('sin motor funciona una alternativa animada ligera sin bloquear navegación',async({page})=>{
+ await page.route('**/cinematic-engine.js',r=>r.abort());await page.goto('/');await expect.poll(async()=>(await inspect(page))?.mode).toBe('canvas2d');await expect.poll(async()=>(await inspect(page)).frames).toBeGreaterThan(1);await page.locator('[data-cinema-skip]').click();await expect(page.locator('#heroTitle')).toBeInViewport({timeout:10000});await page.goto('/#/asistente');await expect(page.locator('#chatInput')).toBeVisible();
 });
-test('la pérdida de contexto WebGL libera recursos y mantiene alternativa visual',async({page})=>{
- await page.goto('/');await ready(page);await page.evaluate(()=>document.querySelector('.bv-cinema__canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());await expect.poll(async()=>(await inspect(page)).mode).toBe('fallback');expect((await inspect(page)).resources).toBe(0);await expect(page.locator('#cinematicTitle')).toBeVisible();
+test('la pérdida de contexto WebGL pasa a animación ligera',async({page})=>{
+ await page.goto('/');await ready(page);await page.evaluate(()=>document.querySelector('.bv-cinema__canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());await expect.poll(async()=>(await inspect(page)).mode).toBe('canvas2d');await expect.poll(async()=>(await inspect(page)).active).toBe(true);
 });
 test('la copia autocontenida ejecuta WebGL sin pedir dependencias ni API',async({page})=>{
  const outgoing=[];page.on('request',r=>{if(/^https?:/.test(r.url()))outgoing.push(r.url());});await page.goto('/__test/revision');await ready(page);await scroll(page,.91);await expect(page.locator('#cinematicTitle')).toBeVisible();expect(outgoing).toHaveLength(1);expect(outgoing[0]).toContain('/__test/revision');
 });
 
-test('WebGL no disponible conserva SVG y contenido existente',async({page})=>{
- await page.addInitScript(()=>{const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/.test(type)?null:get.call(this,type,...args);};});await page.goto('/');await expect.poll(async()=>(await inspect(page))?.mode).toBe('fallback');await expect(page.locator('.bv-cinema__fallback')).toBeVisible();await page.locator('[data-cinema-skip]').click();await expect(page.locator('#heroTitle')).toBeInViewport({timeout:10000});
+test('sin WebGL dibuja partículas en Canvas 2D y mantiene scroll',async({page})=>{
+ await page.addInitScript(()=>{const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/.test(type)?null:get.call(this,type,...args);};});await page.goto('/');await expect.poll(async()=>(await inspect(page))?.mode).toBe('canvas2d');const first=(await inspect(page)).frames;await expect.poll(async()=>(await inspect(page)).frames).toBeGreaterThan(first);await scroll(page,.65);await page.locator('[data-cinema-skip]').click();await expect(page.locator('#heroTitle')).toBeInViewport({timeout:10000});
 });
 test('fuera de pantalla se pausa el render y al volver se reanuda',async({page})=>{
  await page.goto('/');await ready(page);await page.locator('#faqTitle').scrollIntoViewIfNeeded();await expect.poll(async()=>(await inspect(page)).active).toBe(false);const frame=(await inspect(page)).frames;await page.waitForTimeout(160);expect((await inspect(page)).frames).toBe(frame);await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await expect.poll(async()=>(await inspect(page)).frames).toBeGreaterThan(frame);
@@ -43,4 +43,13 @@ test('fuera de pantalla se pausa el render y al volver se reanuda',async({page})
 
 test('los títulos se revelan sin superponer frases durante el scroll',async({page})=>{
  await page.goto('/');await ready(page);for(const progress of [.22,.25,.37,.49,.5,.51,.63,.75,.77,.92]){await scroll(page,progress);const count=await page.locator('.bv-cinema__beat').evaluateAll(nodes=>nodes.filter(n=>Number(getComputedStyle(n).opacity)>.03).length);expect(count).toBeLessThanOrEqual(1);}
+});
+
+
+test('el usuario activa movimiento aunque el sistema lo reduzca y conserva la elección',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/__test/revision');await expect.poll(async()=>(await inspect(page))?.mode).toBe('reduced');await expect(page.locator('[data-cinema-status]')).toContainText('Tu dispositivo');await page.locator('[data-cinema-motion]').selectOption('full');await ready(page);await expect(page.locator('.liquid-bg i').first()).not.toHaveCSS('animation-name','none');await page.reload();await ready(page);await expect(page.locator('[data-cinema-motion]')).toHaveValue('full');expect((await inspect(page)).systemReduced).toBe(true);await scroll(page,.37);
+ await page.locator('[data-cinema-motion]').selectOption('off');await expect.poll(async()=>(await inspect(page)).mode).toBe('paused');const frames=(await inspect(page)).frames;await page.waitForTimeout(150);expect((await inspect(page)).frames).toBe(frames);await expect(page.locator('#cinematicTitle')).toBeVisible();
+});
+test('la copia de revisión anima sin GPU ni motor y permite pausa explícita',async({page})=>{
+ await page.addInitScript(()=>{const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/.test(type)?null:get.call(this,type,...args);};});await page.goto('/__test/revision');await expect.poll(async()=>(await inspect(page))?.mode).toBe('canvas2d');await expect(page.locator('[data-cinema-status]')).toContainText('Vista ligera animada');await scroll(page,.64);await page.screenshot({path:'test-results/cinema-light.png'});await page.locator('[data-cinema-motion]').selectOption('off');await expect.poll(async()=>(await inspect(page)).mode).toBe('paused');await page.goto('/#/ayuda');await expect(page.locator('#ticketForm')).toBeVisible();
 });

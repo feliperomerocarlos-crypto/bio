@@ -36,11 +36,11 @@ El motor se pide al visitar Inicio; no se carga por red cuando la primera vista 
 
 Según ancho y capacidad declarada se crean 1800/3000 puntos en móvil y 5500/10500 en escritorio. Se limita el pixel ratio a 1,25 en móvil y 1,65 en escritorio. El render móvil tiene un máximo previsto de unos 30 cuadros/s; una medición inicial de cuadros lentos reduce resolución y cantidad de puntos. Esto es una estrategia adaptativa, no una garantía de FPS en todos los equipos. Al reducir una ventana al ancho móvil también se limita su densidad.
 
-El render se pausa fuera de la escena o con la pestaña oculta. Al salir de Inicio se eliminan ScrollTrigger, geometría, material, renderer, contexto y listeners de esa instancia. Al volver se crea una instancia nueva y se reutiliza el motor ya cargado. La pérdida de contexto WebGL vuelve a la alternativa SVG en vez de bloquear la plataforma.
+El render se pausa fuera de la escena o con la pestaña oculta. Al salir de Inicio se eliminan ScrollTrigger, geometría, material, renderer, contexto y listeners de esa instancia. Al volver se crea una instancia nueva y se reutiliza el motor ya cargado. La pérdida de contexto WebGL pasa a Canvas 2D animado, con la misma secuencia y menos partículas; si tampoco hay Canvas 2D, se conserva el SVG estático y la entrada a la plataforma.
 
 ## Preferencia de movimiento
 
-El texto nuevo del propietario solicita expresamente respetar `prefers-reduced-motion`; sustituye su preferencia anterior de mantener siempre las animaciones. Con movimiento reducido no se crea WebGL ni se ejecuta la secuencia larga. Se muestra una composición SVG estática, el nombre BioVolt, el mensaje y el botón de entrada. Se detienen las animaciones CSS y SVG existentes, y el helper original de movimiento vuelve a consultar la preferencia del sistema. Los cambios de preferencia durante la sesión también se aplican.
+El texto nuevo del propietario solicita expresamente respetar `prefers-reduced-motion`; sustituye su preferencia anterior de mantener siempre las animaciones. Con movimiento reducido no se crea WebGL ni se ejecuta la secuencia larga de forma automática. Se muestra una composición SVG estática, el nombre BioVolt, el mensaje y el botón de entrada. Se detienen las animaciones CSS y SVG existentes, y el helper original de movimiento vuelve a consultar la preferencia del sistema. Los cambios de preferencia durante la sesión también se aplican.
 
 ## Verificación local
 
@@ -89,3 +89,20 @@ Se prepara un montaje separado de la página, con la misma escena 3D grabada loc
 - Comparación de backend, SQL, lógica de datos y mesa contra `origin/main`: sin diferencias.
 - La navegación por `file://` está bloqueada por política del navegador del entorno; no se intentó desactivar esa política. La copia se verificó por HTTP local, sin peticiones de dependencias o servicios.
 - Video: exportación de 288 cuadros de WebGL a 24 fps, seguida de interfaz local con datos simulados, cierre de marca y música minimalista. No incluye voz. La captura de interfaz no produjo errores JavaScript.
+
+
+## Corrección de la revisión estática — control de movimiento
+
+El propietario informó que `revision/index.html` se mostraba sin animaciones al abrirlo en su equipo. No se obtuvo acceso a la configuración de su navegador: no se atribuye una causa exacta sin esa evidencia. Se reprodujeron dos condiciones que dejaban estática la versión anterior: movimiento reducido solicitado por el sistema y ausencia/pérdida de WebGL.
+
+Se añade el selector visible **Movimiento**, con tres valores: Según mi dispositivo, Activado y En pausa. La elección explícita se conserva en `localStorage` como `bvMotionPreference`; no contiene información personal ni credenciales. «Activado» permite al visitante elegir movimiento aunque su sistema solicite reducirlo, y «En pausa» lo detiene. Sin elección expresa se sigue respetando el sistema. La preferencia se resuelve antes de pintar, y existe una comprobación ligera de coherencia si el navegador omite un evento de cambio.
+
+Si WebGL no se puede iniciar, se usa Canvas 2D con proyección de las mismas nubes, espiral, hoja y flujo: 240 puntos en móvil y 520 en escritorio. Se dibuja únicamente con la escena visible, y se liberan canvas, sprites, listeners y RAF al navegar o pausar. No requiere otra dependencia ni servicios externos. El SVG queda como alternativa final si el navegador tampoco puede dibujar Canvas 2D.
+
+Se elimina la transformación de entrada del contenedor Inicio porque alteraba las medidas de ScrollTrigger mientras la escena se inicializaba. Se conservan las animaciones de sus componentes y las transiciones de los otros módulos.
+
+La copia de revisión incorpora todos estos cambios. Para revisar: volver a descargar el ZIP de la rama, extraerlo, abrir la copia nueva `revision/index.html` en un navegador y elegir **Movimiento → Activado**. Desplazarse hacia abajo y arriba; la forma principal depende del scroll, mientras las partículas mantienen deriva y brillo continuo. Si el selector está deshabilitado y muestra el aviso de JavaScript, se está viendo sin ejecución de scripts y debe abrirse en un navegador completo.
+
+Las nuevas pruebas cubren activación explícita con sistema reducido, persistencia al recargar, pausa del usuario y animación de la copia sin WebGL. Se mantiene la limitación del entorno respecto a `file://`: se prueba el HTML autocontenido servido por HTTP local, sin afirmar que se haya inspeccionado el navegador del propietario.
+
+Validación de esta corrección: `npm run check`, `npm test` (36 aprobadas), `npm run test:browser` (37 aprobadas), `npm run build` y `git diff --check` aprobados. La comparación con el commit previo `bac1fd5` confirma que no se modificaron funciones Netlify, librerías de backend, SQL, `assets/core.js` ni los assets de la mesa de ayuda. No se consultaron servicios de producción.
