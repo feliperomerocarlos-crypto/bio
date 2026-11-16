@@ -1,11 +1,12 @@
 // Netlify Function: solicitudes de la mesa de ayuda guardadas en la base de datos
 // Ruta pública: /api/tickets
-//   GET     -> lista las últimas solicitudes (el correo NUNCA se devuelve)
+//   GET     -> docente: últimas 100; código privado: solo su ticket (sin correo)
 //   POST    -> crea una solicitud
 //   PATCH   -> cambia el estado   (requiere la clave de docente: cabecera x-admin-pin)
 //   DELETE  -> elimina            (requiere la clave de docente)
 // Variable de entorno extra: AYUDA_PIN (clave de docente). Sin ella, PATCH y DELETE quedan desactivados.
 import mysql from "mysql2/promise";
+import { isAdmin, tokenId, ticketId, canIssueToken, issueToken, throttled } from "../../lib/access.mjs";
 
 export const config = { path: "/api/tickets" };
 const CATS = ["Sistemas", "Inventario", "Producción", "Logística", "Administración", "Otro"];
@@ -35,15 +36,21 @@ const limited = (ip) => { const n = Date.now(); const r = (hits.get(ip) || []).f
 export default async (request, context) => {
   const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
   const out = (status, data) => new Response(JSON.stringify(data), { status, headers });
+  if (throttled(request, context, "tickets", 60)) return out(429, { error: "Demasiadas solicitudes. Espera un minuto." });
   if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) return out(503, { error: "Base de datos no configurada." });
   const url = new URL(request.url);
   try {
     if (request.method === "GET") {
-      const rows = await q(`SELECT ${COLS} FROM solicitudes_ayuda ORDER BY id DESC LIMIT 100`);
+      const admin = isAdmin(request), ownerId = tokenId(request);
+      if (!admin && !ownerId) return out(403, { error: "Usa tu código privado de consulta o el acceso docente." });
+      const rows = admin
+        ? await q(`SELECT ${COLS} FROM solicitudes_ayuda ORDER BY id DESC LIMIT 100`)
+        : await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ? LIMIT 1`, [ownerId]);
       return out(200, { tickets: rows.map(fmt) });
     }
     if (request.method === "POST") {
       if (limited(context?.ip || request.headers.get("x-nf-client-connection-ip") || "anon")) return out(429, { error: "Demasiadas solicitudes seguidas. Espera un minuto." });
+      if (!canIssueToken()) return out(503, { error: "La consulta privada de solicitudes aún no está configurada." });
       const b = await request.json().catch(() => ({}));
       const s = (v, n) => String(v ?? "").trim().slice(0, n);
       const t = { nombre: s(b.name, 80), correo: s(b.email, 120), asunto: s(b.subject, 90), descripcion: s(b.description, 500) };
@@ -57,13 +64,13 @@ export default async (request, context) => {
       const res = await q(`INSERT INTO solicitudes_ayuda (asunto, nombre, correo, categoria, prioridad, descripcion) VALUES (?,?,?,?,?,?)`,
         [t.asunto, t.nombre, t.correo, b.category, b.priority, t.descripcion]);
       const [row] = await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [res.insertId]);
-      return out(201, { ticket: fmt(row) });
+      return out(201, { ticket: fmt(row), accessToken: issueToken(res.insertId) });
     }
     if (request.method === "PATCH" || request.method === "DELETE") {
       const pin = process.env.AYUDA_PIN;
       if (!pin) return out(403, { error: "Esta acción está desactivada: falta configurar la clave de docente." });
-      if (request.headers.get("x-admin-pin") !== pin) return out(403, { error: "Clave incorrecta." });
-      const id = parseInt(String(url.searchParams.get("id") || "").replace(/\D/g, ""), 10);
+      if (!isAdmin(request)) return out(403, { error: "Clave incorrecta." });
+      const id = ticketId(url.searchParams.get("id"));
       if (!id) return out(400, { error: "Falta la solicitud." });
       if (request.method === "DELETE") { await q("DELETE FROM solicitudes_ayuda WHERE id = ?", [id]); return out(200, { ok: true }); }
       const b = await request.json().catch(() => ({}));

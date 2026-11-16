@@ -1,16 +1,74 @@
 # BioVolt AI
 
-Sitio estático (index.html) + Netlify Function que conecta el asistente con la API de Gemini.
+Mejoras incrementales sobre `feliperomerocarlos-crypto/bio`, base `abeb896`. Se conservan las ocho vistas, identidad visual, TiDB, Netlify Functions y ambos sistemas Gemini. No se ha publicado esta versión.
+
+## Ver el diseño sin publicar
+
+Selecciona esta rama en GitHub, pulsa **Code → Download ZIP**, extrae el archivo y abre **revision/index.html** con doble clic. Es una copia autocontenida de revisión, sin llamadas de red ni conexión a las API. Instrucciones en `revision/LEEME.md`.
+
+La rama `dev/biovolt-integral` incluye una regla `ignore` de Netlify para cancelar sus builds automáticos y un bloqueo adicional en el build remoto. No cambia el comportamiento de `main`. Para publicar posteriormente, el propietario debe autorizarlo expresamente y revisar esta protección.
+
+## Desarrollo y verificación
+
+Node.js 24 y npm. Instalar con `npm ci`. Comandos:
+
+```sh
+npm run check
+npm test
+npm run test:browser
+npm run build
+npm run dev
+```
+
+`npm run dev` sirve la web en http://127.0.0.1:4173. Las APIs locales responden 503 de forma deliberada: permite explorar la demostración sin consumir recursos de producción. Los tests de navegador simulan respuestas. No introduzcas datos personales reales en este modo.
+
+Las pruebas de navegador usan Chromium instalado en `/usr/bin/chromium`. En otro equipo, configura `CHROMIUM_PATH` con la ruta de Chrome/Chromium. Las pruebas de funciones sustituyen MySQL y fetch; no requieren credenciales.
 
 ## Estructura
-- `index.html` — la página completa
-- `netlify/functions/chat.mjs` — función que llama a Gemini (ruta pública: `/api/chat`)
-- `netlify.toml` — configuración de Netlify
 
-## Despliegue
-1. Sube estos archivos a un repositorio nuevo de GitHub.
-2. En Netlify: Add new site -> Import an existing project -> elige el repositorio.
-3. Antes de desplegar: Site configuration -> Environment variables -> agrega `GEMINI_API_KEY`.
-4. Despliega. Si agregas o cambias la variable después, haz un nuevo deploy.
+- `index.html`: SPA original, ocho vistas y CSS/JS existentes con cambios localizados.
+- `assets/core.js`: unidades, simulación, CSV y cliente JSON con timeout.
+- `assets/enhancements.js` y `.css`: controles sobre las vistas existentes.
+- `netlify/functions/{data,chat,tickets,agente,seguimiento}.mjs`: backend existente ampliado.
+- `lib/access.mjs`: autorización y códigos privados; `lib/analytics.mjs`: periodos y normalización SQL.
+- `sql/seguimiento_ayuda.sql`: migración original idempotente de seguimiento, sin ejecutar.
+- `tests/`: pruebas unitarias, contratos de funciones y navegador.
+- `scripts/`: comprobación, compilación estática y servidor local sin acceso a producción.
+- `docs/`: auditoría, autenticación, cambios y validación.
 
-La clave de API vive solo en Netlify; nunca va en el HTML.
+## Variables de entorno de Netlify
+
+| Variable | Uso |
+|---|---|
+| `GEMINI_API_KEY` | Clave de Google; únicamente backend. |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Conexión TiDB original (`DB_PORT` por defecto 4000), TLS mínimo 1.2. |
+| `AYUDA_PIN` | Clave compartida de docente para listar todos los tickets, modificar estados, eliminar y seguimiento interno. |
+| `TICKET_TOKEN_SECRET` | **Nueva y obligatoria para crear tickets**: secreto aleatorio independiente, al menos 32 caracteres; firma códigos de consulta por ticket. No reutilizar el PIN. |
+| `GEMINI_MODEL_AGENTE` | Override existente; por defecto `gemini-3.5-flash-lite`. Conservar configuración autorizada. |
+| `GEMINI_SEARCH_MODEL` | Override existente de búsqueda; por defecto el mismo modelo del agente. No cambiar sin autorización. |
+
+Assistant conserva `gemini-3.6-flash`. No se comprobó la disponibilidad externa de estos nombres ni se sustituyeron. Genera los secretos mediante un gestor de contraseñas y configúralos en Netlify, nunca en HTML ni en un commit. La creación de tickets responde 503 antes de escribir si no está configurado el secreto privado.
+
+El usuario de TiDB necesita SELECT sobre las tablas consultadas y permisos de escritura limitados a `solicitudes_ayuda` y `seguimiento_ayuda`. No conceder DDL ni permisos administrativos al runtime. El código conserva las variables y pools existentes; los permisos reales deben verificarse por el propietario.
+
+## Configuración y despliegue posterior
+
+1. Revisar los cambios y completar la lista de `docs/VALIDACION.md`.
+2. Configurar las variables anteriores; no copiar credenciales a GitHub.
+3. Si falta `seguimiento_ayuda`, revisar y ejecutar manualmente `sql/seguimiento_ayuda.sql` con respaldo y autorización. No se requieren tablas nuevas para los códigos privados.
+4. En Netlify: Node 24, build `npm run build`, publish `dist`, functions `netlify/functions`. El build copia solo HTML y assets, evitando servir SQL y fuentes del backend como estáticos.
+5. Solo tras autorización del propietario: publicar una versión y comprobar rutas `/api/data`, `/api/chat`, `/api/tickets`, `/api/agente` y `/api/seguimiento`.
+
+El propietario autorizó entregar el código en la rama de revisión de GitHub. No se ejecutaron despliegues, merges, migraciones ni cambios de datos reales.
+
+## Uso de las mejoras
+
+- **Mesa de ayuda:** al crear una solicitud se entrega un código privado válido por 30 días. Se conserva en `sessionStorage` de esa pestaña; copiarlo permite consultar en otro equipo. Sin el código, el docente debe recuperar el ticket. Los tickets anteriores quedan accesibles al docente. El código autoriza consulta y revisión IA de un solo ticket; no permite borrarlo, cambiar su estado o leer notas internas.
+- **IA:** conserva herramientas y búsqueda. La respuesta no cierra el ticket: una persona debe verificar la resolución. El chat distingue Gemini y respaldo local; su historial permanece en la pestaña hasta limpiar o cerrar la sesión del navegador.
+- **Dashboard/analítica:** filtros de hasta 366 días y planta; comparación con un periodo anterior de igual longitud. SQL agrega en servidor y convierte MWh a kWh. Las unidades desconocidas se excluyen e informan. Ambiente, mantenimiento y eficiencia de pruebas son acumulados globales, no usan el filtro de producción.
+- **Inventario:** búsqueda, tipo y almacén. Se muestran todas las filas material/almacén del conjunto cargado. Umbral configurable por unidad y local a la sesión de página, sin persistir límites operativos en TiDB. No se calcula capacidad disponible si no hay unidades comparables verificadas.
+- **Simulador:** todos los parámetros los introduce el usuario, junto con su fuente. Fórmulas y límites visibles; ingreso bruto orientativo en COP, sin afirmar rentabilidad ni validez científica.
+- **Reportes:** CSV con BOM, separador `;` y defensa contra fórmulas de Excel. PDF mediante «Imprimir / Guardar PDF» del navegador, sin servicio externo. Tickets exporta solo conteos del conjunto autorizado, sin datos personales. Inventario exporta solo el conjunto cargado y filtrado.
+- **Movimiento:** IntersectionObserver, CSS y parallax existentes; sin GSAP porque no aporta una ventaja necesaria para esta arquitectura. Por instrucción posterior del propietario, las animaciones permanecen activas incluso si el sistema solicita reducir movimiento. Se mantiene contenido visible si falla el observador.
+
+Los límites de uso son por instancia serverless. Esta versión no incorpora cuentas individuales, recuperación por correo, revocación individual de códigos ni un límite distribuido; véase `docs/AUTENTICACION.md`.
