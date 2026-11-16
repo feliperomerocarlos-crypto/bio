@@ -24,7 +24,7 @@ const getPool = () =>
 const Q = {
   statsA: `SELECT (SELECT COUNT(*) FROM plantas) AS plants, (SELECT COUNT(*) FROM produccion_energia) AS production,
     (SELECT COUNT(*) FROM inventario) AS inventory, (SELECT COUNT(*) FROM biomasa) AS biomass,
-    (SELECT COALESCE(SUM(cantidad),0) FROM produccion_energia) AS energy,
+    (SELECT COALESCE(SUM(CASE WHEN UPPER(TRIM(unidad)) = 'MWH' THEN cantidad * 1000 WHEN UPPER(TRIM(unidad)) = 'KWH' THEN cantidad ELSE 0 END),0) FROM produccion_energia) AS energy,
     (SELECT COALESCE(SUM(co2_evitado_ton),0) FROM control_ambiental) AS co2,
     (SELECT COALESCE(SUM(residuos_procesados_ton),0) FROM control_ambiental) AS waste`,
   // Solo conteos (requiere SELECT en estas tablas; ver grants_extra.sql)
@@ -32,7 +32,10 @@ const Q = {
   plants: `SELECT id_planta, nombre, ubicacion, capacidad, estado FROM plantas ORDER BY id_planta LIMIT 200`,
   productionRows: `SELECT id_produccion, id_planta, fecha, cantidad, unidad FROM produccion_energia ORDER BY fecha DESC, id_produccion DESC LIMIT 8`,
   biomass: `SELECT b.id_biomasa, b.nombre, b.id_tipo, t.nombre AS tipo, b.cantidad, b.unidad FROM biomasa b LEFT JOIN tipos_biomasa t ON t.id_tipo = b.id_tipo ORDER BY b.id_biomasa LIMIT 500`,
-  inventory: `SELECT id_biomasa, id_almacen, stock FROM inventario ORDER BY id_biomasa LIMIT 1000`,
+    inventory: `SELECT id_biomasa, id_almacen, stock FROM inventario ORDER BY id_biomasa LIMIT 1000`,
+    // Serie en kWh y por fecha: no se mezclan unidades en las gráficas.
+    energySeries: `SELECT fecha, ROUND(SUM(CASE WHEN UPPER(TRIM(unidad)) = 'MWH' THEN cantidad * 1000 WHEN UPPER(TRIM(unidad)) = 'KWH' THEN cantidad ELSE 0 END),2) AS kwh FROM produccion_energia GROUP BY fecha ORDER BY fecha DESC LIMIT 365`,
+    productionByUnit: `SELECT unidad, COUNT(*) AS registros, ROUND(SUM(cantidad),2) AS total FROM produccion_energia GROUP BY unidad`,
 };
 const ID = new Set(["id_planta", "id_produccion", "id_biomasa", "id_tipo", "id_almacen"]);
 const strIds = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, ID.has(k) ? String(v) : v])));
@@ -62,6 +65,8 @@ export default async (request) => {
     productionRows: strIds(d.productionRows || []),
     biomass: strIds(d.biomass || []),
     inventory: strIds(d.inventory || []),
+    energySeries: (d.energySeries || []).slice().reverse(),
+    productionByUnit: d.productionByUnit || [],
   });
   cache = { at: Date.now(), body };
   return new Response(body, { status: 200, headers });

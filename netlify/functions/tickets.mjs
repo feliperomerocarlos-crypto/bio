@@ -6,8 +6,19 @@
 //   DELETE  -> elimina            (requiere la clave de docente)
 // Variable de entorno extra: AYUDA_PIN (clave de docente). Sin ella, PATCH y DELETE quedan desactivados.
 import mysql from "mysql2/promise";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const config = { path: "/api/tickets" };
+// El token de acceso temporal permite responder un ticket recién creado sin publicar
+// todos los tickets. Se firma en el servidor; no requiere cambios en TiDB.
+const secret = () => process.env.AYUDA_TOKEN_SECRET || process.env.GEMINI_API_KEY;
+const sign = (id, exp) => createHmac("sha256", secret()).update(`${id}.${exp}`).digest("hex");
+const issueToken = id => {
+  if (!secret()) return null;
+  const exp = Math.floor(Date.now() / 1000) + 3600;
+  return `${id}.${exp}.${sign(id, exp)}`;
+};
+
 const CATS = ["Sistemas", "Inventario", "Producción", "Logística", "Administración", "Otro"];
 const PRIOS = ["Baja", "Media", "Alta", "Crítica"];
 const ESTADOS = ["Abierto", "En proceso", "Resuelto"];
@@ -39,6 +50,11 @@ export default async (request, context) => {
   const url = new URL(request.url);
   try {
     if (request.method === "GET") {
+      if (limited(context?.ip || request.headers.get("x-nf-client-connection-ip") || "anon"))
+        return out(429, { error: "Demasiadas consultas. Intenta nuevamente en un minuto." });
+      // No exponer nombres, descripciones o respuestas de personas por internet.
+      if (!process.env.AYUDA_PIN || request.headers.get("x-admin-pin") !== process.env.AYUDA_PIN)
+        return out(403, { error: "Solo el docente puede consultar el historial completo." });
       const rows = await q(`SELECT ${COLS} FROM solicitudes_ayuda ORDER BY id DESC LIMIT 100`);
       return out(200, { tickets: rows.map(fmt) });
     }
@@ -57,7 +73,7 @@ export default async (request, context) => {
       const res = await q(`INSERT INTO solicitudes_ayuda (asunto, nombre, correo, categoria, prioridad, descripcion) VALUES (?,?,?,?,?,?)`,
         [t.asunto, t.nombre, t.correo, b.category, b.priority, t.descripcion]);
       const [row] = await q(`SELECT ${COLS} FROM solicitudes_ayuda WHERE id = ?`, [res.insertId]);
-      return out(201, { ticket: fmt(row) });
+      return out(201, { ticket: fmt(row), accessToken: issueToken(row.id) });
     }
     if (request.method === "PATCH" || request.method === "DELETE") {
       const pin = process.env.AYUDA_PIN;

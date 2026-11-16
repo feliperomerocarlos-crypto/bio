@@ -10,7 +10,7 @@
 
 import mysql from "mysql2/promise";
 
-const MODEL = "gemini-3.6-flash";
+const MODEL = process.env.GEMINI_MODEL_CHAT || "gemini-2.5-flash";
 
 const BASE_INSTRUCTION = `
 Eres BioVolt Assistant, el asistente virtual de BioVolt, un proyecto académico colombiano de gestión sostenible que aprovecha residuos orgánicos y agrícolas para producir energía.
@@ -122,7 +122,15 @@ async function getSnapshot() {
   }
 
   let text = JSON.stringify(data);
-  if (text.length > 14000) text = text.slice(0, 14000);
+  if (text.length > 14000) {
+    // Preserva JSON válido: si el resumen crece, elimina bloques completos.
+    const limited = {};
+    for (const [key, rows] of Object.entries(data)) {
+      const trial = JSON.stringify({ ...limited, [key]: rows });
+      if (trial.length <= 14000) limited[key] = rows;
+    }
+    text = JSON.stringify(limited);
+  }
   snapshotCache = { at: Date.now(), text };
   return text;
 }
