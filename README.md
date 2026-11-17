@@ -1,6 +1,28 @@
 # BioVolt AI
 
-## Nueva revisión cinematográfica
+## Revisión actual: movimiento perceptible sin scroll
+
+La rama local `dev/biovolt-movimiento-permanente` conserva la interfaz transparente y añade movimiento autónomo visible a las partículas: giro, inclinación, expansión y desplazamiento. El scroll sigue eligiendo la forma, pero la escena continúa al detenerse bajo tablas, formularios y hasta el pie. WebGL y Canvas 2D comparten la misma trayectoria temporal. Se conserva la pausa manual y la suspensión de pestaña oculta. No cambian API, datos ni modelos. Validación: 70 pruebas de navegador y 36 de lógica aprobadas. Detalles en [docs/MOVIMIENTO-PERMANENTE.md](docs/MOVIMIENTO-PERMANENTE.md). Sin push ni publicación.
+
+## Revisión anterior: interfaz minimalista transparente
+
+La rama local `dev/biovolt-minimal-transparente` retira superficies, bordes, brillos, tarjetas de vidrio, bloques de métricas y burbujas del contenido de las ocho secciones. Tablas y mensajes quedan como texto sobre las mismas partículas. Los campos conservan una línea y foco visible; los filtros, formularios, gráficos, fuentes y estados se mantienen. El fondo continúa al escribir y al abrir solicitudes, con atenuación suave. Solo se detiene por pausa manual o pestaña oculta. Las API y modelos no cambian. Validación: 67 pruebas de navegador y 36 de lógica aprobadas, además de revisión visual en ambos temas. Sin push ni publicación. Detalles en [docs/MINIMAL-TRANSPARENTE.md](docs/MINIMAL-TRANSPARENTE.md).
+
+## Revisión anterior: partículas continuas en toda la página
+
+La rama local `dev/biovolt-particulas-continuas` extiende la misma nube de partículas de la apertura a los ocho capítulos. Un solo canvas y una sola geometría se transforman con el scroll, con estados intermedios y reversión al subir. Los textos tienen tramos narrativos y los datos se presentan en paneles integrados. La nube continúa tras las tablas; las revisiones siguientes mantienen el movimiento también al escribir o abrir un diálogo. No se cambian backend, modelos ni lógica de datos/soporte. Validación: 67 pruebas de navegador y 36 de lógica aprobadas. Sin push ni publicación. Detalles, archivos y límites en [docs/PARTICULAS-CONTINUAS.md](docs/PARTICULAS-CONTINUAS.md).
+
+## Revisión anterior: una sola página con scroll continuo
+
+La rama local `dev/biovolt-scroll-continuo` reúne los ocho módulos, en su orden original, en una página larga. El archivo público `index.html` contiene los estilos y scripts propios; solo las librerías opcionales se cargan desde cdnjs en versiones fijas de 2023/2024. Se incorporan navegación con hashes, indicador lateral, objetos 3D por sección, titulares por palabras y cifras giratorias. El movimiento permanece activo con independencia de la preferencia del sistema y admite pausa manual.
+
+La mesa, los datos y el chat conservan sus contratos; el cliente acepta `dosPasos` explícito y espera hasta 25 segundos. Las funciones y modelos Gemini no cambian. Para editar, usar `src/page.html` y `assets`; generar con `npm run build:page`. Para una revisión sin red, usar `revision/index.html`, con datos e IA simulados. Detalles, pruebas, configuración, archivos para GitHub y límites: [docs/SCROLL-CONTINUO.md](docs/SCROLL-CONTINUO.md). Esta revisión no se ha subido ni publicado.
+
+## Experiencia visual en todas las vistas — revisión local
+
+La rama `dev/biovolt-experiencia-completa`, basada en main `6549abe`, extiende el recorrido cinematográfico a los ocho módulos. Incluye objetos 3D propios por vista, fondo con profundidad durante el scroll, entrada de títulos y gráficos, alternativa animada sin WebGL y control de movimiento en la barra. El fondo se pausa al escribir o abrir un diálogo. Se conservan la identidad, la navegación, los datos, la mesa y ambos modelos Gemini. Validación local: 36 pruebas de lógica y 49 de navegador aprobadas. Revisión sin push ni despliegue. Arquitectura, archivos, comprobaciones y límites en [docs/EXPERIENCIA-COMPLETA.md](docs/EXPERIENCIA-COMPLETA.md).
+
+## Antecedente: revisión cinematográfica de Inicio
 
 La rama de revisión `dev/biovolt-cinematica` incorpora una escena Three.js + GSAP/ScrollTrigger en Inicio, sin cambios de backend. Espiral, hoja y flujo energético responden al scroll y a su retroceso. Incluye calidad adaptativa, alternativa animada Canvas 2D sin WebGL y SVG estático como último respaldo. El selector Movimiento permite activar o pausar explícitamente; sin elección propia respeta el movimiento reducido del sistema. Consulta `docs/CINEMATICA.md` para arquitectura, comandos, pruebas y límites. La fusión de esta revisión visual a main y su despliegue requieren autorización del propietario.
 
@@ -81,6 +103,6 @@ Mantén las variables actuales. Añade en Functions del proyecto/contexto correc
 - **Inventario:** búsqueda, tipo y almacén. Se muestran todas las filas material/almacén del conjunto cargado. Umbral configurable por unidad y local a la sesión de página, sin persistir límites operativos en TiDB. No se calcula capacidad disponible si no hay unidades comparables verificadas.
 - **Simulador:** todos los parámetros los introduce el usuario, junto con su fuente. Fórmulas y límites visibles; ingreso bruto orientativo en COP, sin afirmar rentabilidad ni validez científica.
 - **Reportes:** CSV con BOM, separador `;` y defensa contra fórmulas de Excel. PDF mediante «Imprimir / Guardar PDF» del navegador, sin servicio externo. Tickets exporta solo conteos del conjunto autorizado, sin datos personales. Inventario exporta solo el conjunto cargado y filtrado.
-- **Movimiento:** IntersectionObserver, CSS y parallax existentes, más GSAP/ScrollTrigger en la nueva escena de Inicio. La nueva instrucción de la revisión cinematográfica vuelve a respetar `prefers-reduced-motion`, incluidas las animaciones existentes. Se mantiene contenido visible si falla el observador.
+- **Movimiento:** una misma nube de partículas recorre los ocho capítulos con Three.js o Canvas 2D, interpolación continua y reversible por scroll nativo. Se conserva IntersectionObserver para las entradas de datos y gráficos. Conforme a la instrucción actual del propietario, la preferencia reducida del sistema no detiene la animación; sí lo hace la pausa manual. El fondo sigue animado al editar o abrir un diálogo, con atenuación suave. El contenido permanece visible si falla el render.
 
 Los límites de uso son por instancia serverless. Esta versión no incorpora cuentas individuales, revocación individual de códigos ni un límite distribuido; la recuperación por correo está implementada y requiere SMTP; véase `docs/AUTENTICACION.md`.

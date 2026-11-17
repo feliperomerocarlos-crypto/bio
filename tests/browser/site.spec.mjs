@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import {cdn} from './cdn-fixture.mjs';
+test.beforeEach(async({page})=>cdn(page));
 const ticket={id:'BV-7',subject:'Consulta de inventario',name:'Usuario privado',email:'Oculto por privacidad',category:'Inventario',priority:'Alta',status:'Abierto',description:'Necesito consultar el inventario disponible.',createdAt:Date.now(),ai:null};
 const token='private-test-code.signature';
 async function offline(page){await page.route('**/api/**',r=>r.fulfill({status:503,json:{error:'API simulada no disponible'}}));}
@@ -41,11 +43,11 @@ test('TiDB vacío no se mezcla con muestra; un MWh se compara como 1000 kWh',asy
   await page.goto('/#/inventario');await expect(page.locator('#invRows tr')).toHaveCount(0);await expect(page.locator('#invEmpty')).toBeVisible();
   await page.goto('/#/plantas');await expect(page.locator('#plantCards article')).toHaveCount(0);
 });
-test('scroll ejecuta animaciones y la preferencia de movimiento reducido las detiene',async({page})=>{
+test('scroll ejecuta animaciones incluso con preferencia de movimiento reducido',async({page})=>{
   await offline(page);await page.goto('/');await page.locator('#moduleGrid').scrollIntoViewIfNeeded();
   await expect(page.locator('#moduleGrid .card').first()).toHaveClass(/rv-in/);
   await expect.poll(()=>page.locator('#moduleGrid .card').first().evaluate(el=>getComputedStyle(el).animationName)).toBe('rvIn');
-  await page.emulateMedia({reducedMotion:'reduce'});await expect.poll(()=>page.locator('#moduleGrid .card').first().evaluate(el=>getComputedStyle(el).animationName)).toBe('none');await expect(page.locator('#moduleGrid .card').first()).toHaveCSS('opacity','1');
+  await page.emulateMedia({reducedMotion:'reduce'});await expect.poll(()=>page.locator('#moduleGrid .card').first().evaluate(el=>getComputedStyle(el).animationName)).toBe('rvIn');await expect(page.locator('#moduleGrid .card').first()).toHaveCSS('opacity','1');
 });
 for(const width of [360,390,768,1024,1440])test('responsive '+width+'px sin desbordamiento',async({page})=>{
   await page.setViewportSize({width,height:900});await offline(page);await page.goto('/');
@@ -56,8 +58,8 @@ for(const width of [360,390,768,1024,1440])test('responsive '+width+'px sin desb
   if(width===1440){await page.goto('/');await page.waitForTimeout(3800);await page.screenshot({path:'test-results/BioVolt-inicio-desktop.png',fullPage:true});}
   if(width===390){await page.goto('/#/analitica');await expect(page.locator('#view-analitica')).toHaveCSS('opacity','1');await page.screenshot({path:'test-results/BioVolt-analitica-mobile.png',fullPage:true});}
 });
-test('movimiento reducido y ausencia de observador conservan el contenido visible',async({page})=>{
-  await page.emulateMedia({reducedMotion:'reduce'});await page.addInitScript(()=>{delete window.IntersectionObserver;});await offline(page);await page.goto('/');await expect(page.locator('.hero-stage')).toHaveCSS('opacity','1');await expect.poll(()=>page.locator('.liquid-bg i').first().evaluate(el=>getComputedStyle(el).animationName)).toBe('none');await page.locator('#moduleGrid').scrollIntoViewIfNeeded();await expect(page.locator('#moduleGrid .card').first()).toHaveCSS('opacity','1');
+test('sin observador el contenido es visible y el movimiento sigue activo',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});await page.addInitScript(()=>{delete window.IntersectionObserver;});await offline(page);await page.goto('/');await expect(page.locator('.hero-stage')).toHaveCSS('opacity','1');await expect.poll(()=>page.locator('.liquid-bg i').first().evaluate(el=>getComputedStyle(el).animationName)).not.toBe('none');await page.locator('#moduleGrid').scrollIntoViewIfNeeded();await expect(page.locator('#moduleGrid .card').first()).toHaveCSS('opacity','1');
 });
 test('modo oscuro conserva identidad y se mantiene al recargar',async({page})=>{
   await offline(page);await page.goto('/');

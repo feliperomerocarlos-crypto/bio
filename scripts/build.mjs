@@ -9,6 +9,7 @@ for (const name of await readdir('netlify/functions')) {
   const result=spawnSync(process.execPath,['--check','netlify/functions/'+name],{stdio:'inherit'});
   if(result.status) process.exit(result.status);
 }
+await import('./build-page.mjs');
 await rm('dist',{recursive:true,force:true}); await mkdir('dist');
 await copyFile('index.html','dist/index.html'); await cp('assets','dist/assets',{recursive:true});
 console.log('Build estático listo: dist/ (sin backend, SQL, tests ni documentación públicos).');

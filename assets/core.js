@@ -18,7 +18,7 @@
     return { kwh: energy, revenue };
   }
   const fetchJSON = async (url, options = {}) => {
-    const response = await fetch(url, { ...options, signal: options.signal || AbortSignal.timeout(18000) });
+    const response = await fetch(url, { ...options, signal: options.signal || AbortSignal.timeout(25000) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { const error = new Error(data.error || 'No se pudo completar la consulta.'); error.status = response.status; throw error; }
     return data;
