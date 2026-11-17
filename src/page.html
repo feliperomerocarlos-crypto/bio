@@ -673,13 +673,6 @@ main{padding-top:84px}
 #faq::before{top:-64px;height:64px;transform:translateX(-50%) scaleY(-1);
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60' preserveAspectRatio='none'%3E%3Cpath d='M0 30C240 70 480 0 720 28S1200 62 1440 20V60H0Z'/%3E%3C/svg%3E") center/100% 100% no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60' preserveAspectRatio='none'%3E%3Cpath d='M0 30C240 70 480 0 720 28S1200 62 1440 20V60H0Z'/%3E%3C/svg%3E") center/100% 100% no-repeat}
 
-/* --- Tablero de salidas: cada cifra gira hasta quedar en su valor --- */
-.flip{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px;font-size:26px;line-height:1;font-weight:800;color:var(--tile-ink);perspective:300px;vertical-align:middle}
-.flip.long{font-size:22px}
-.flip .cell{position:relative;display:inline-block;min-width:.78em;padding:.22em .08em;background:var(--tile);border-radius:6px;text-align:center;overflow:hidden}
-.flip .cell::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.65)}
-.flip .cell i{display:block;font-style:normal;transform-origin:50% 50%}
-.flip .sep{color:var(--on-surface-strong);padding:0 1px;font-size:.8em;font-weight:700}
 
 /* =====================================================================
    6. SEGUNDA PASADA: gesto por sección, jerarquía, vida y profundidad
@@ -705,7 +698,6 @@ main{padding-top:84px}
   transition:box-shadow .35s var(--spring),transform .2s ease-out,translate .35s var(--spring),background-color var(--t) var(--ease)}
 .hero-stage,.gesture{box-shadow:var(--card-shadow)}
 .hero-stage{background-image:linear-gradient(165deg,rgba(255,255,255,.07),transparent 40%)}
-.flip .cell{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 4px rgba(0,0,0,.3)}
 .nav{transition:box-shadow .3s var(--ease),background-color var(--t) var(--ease)}
 .nav.scrolled{box-shadow:0 14px 34px rgba(4,9,12,.16),var(--card-shadow)}
 .tilt{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
@@ -715,9 +707,6 @@ main{padding-top:84px}
 .view-head .h-lg{font-size:clamp(34px,4.6vw,54px);line-height:1.04}
 .stat-top{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
 .stat-value{container-type:inline-size}
-.flip{gap:.1em;font-size:clamp(18px,calc(94cqw / var(--w,3)),46px)}
-.flip.long{font-size:clamp(18px,calc(94cqw / var(--w,3)),46px)}
-.stat-value .flip .cell{border-radius:.16em}
 
 /* --- 3) Aparición al hacer scroll (las tarjetas dinámicas también) --- */
 /* El contenido permanece visible aunque falle IntersectionObserver. */
@@ -776,6 +765,7 @@ main{padding-top:84px}
 <link rel="stylesheet" href="assets/experience.css">
 <link rel="stylesheet" href="assets/scroll-page.css">
 <link rel="stylesheet" href="assets/particle-story.css">
+<link rel="stylesheet" href="assets/typography.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2304090C'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23A4E636'/%3E%3Cstop offset='1' stop-color='%234CBF35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(-6 -4) scale(.2)'%3E%3Cpath d='M100 38C150 42 170 94 142 132c-22 26-58 20-70-12C58 82 74 46 100 38Z' fill='url(%23g)'/%3E%3Cpath d='M114 100 92 136h16l-8 32 34-46h-17l12-22z' fill='%2304090C' stroke='%2304090C' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E">
 </head>
 <body>
@@ -1631,66 +1621,34 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
     sws.forEach(s => io.observe(s));
   }
 
-  /* 3) Tablero de aeropuerto para las cifras ([data-bind]) */
-  function tick(c, ch) {
-    const f = c.firstChild;
-    if (rm() || !f.animate) { f.textContent = ch; return; }
-    f.animate([{ transform: 'rotateX(0)' }, { transform: 'rotateX(-88deg)' }], { duration: 55, easing: 'ease-in' });
-    setTimeout(() => {               /* temporizador propio: no depende del evento "finish" de la animación */
-      f.textContent = ch;
-      f.animate([{ transform: 'rotateX(88deg)' }, { transform: 'rotateX(0)' }], { duration: 75, easing: 'ease-out' });
-    }, 55);
+  /* 3) Cifras completas: entrada suave, sin generar dígitos ni cambiar el valor. */
+  const activeNumbers = new Set();
+  function revealNumber(el) {
+    const span = el.firstElementChild;
+    if (!span || rm() || !span.animate) return;
+    try {
+      const animation = span.animate([{opacity:.18,transform:'translateY(12px)'},{opacity:1,transform:'translateY(0)'}], {duration:650,easing:'cubic-bezier(.16,1,.3,1)'});
+      activeNumbers.add(animation);
+      animation.onfinish = animation.oncancel = () => activeNumbers.delete(animation);
+    } catch (error) { /* El valor ya está visible incluso si la animación no está disponible. */ }
   }
-  function runFlip(el) {
-    const cells = el.__cells; if (!cells) return;
-    const tok = el.__tok = {};
-    const settle = () => cells.forEach(([c, ch]) => { c.firstChild.textContent = ch; });
-    if (rm()) { settle(); return; }
-    let longest = 0;
-    cells.forEach(([c, ch], i) => {
-      c.firstChild.textContent = '0';
-      let n = 5 + Math.min(i, 6) * 2;
-      longest = Math.max(longest, n * 110);
-      (function go() {
-        if (el.__tok !== tok) return;
-        if (rm()) { settle(); return; }
-        if (n-- <= 0) { tick(c, ch); return; }
-        tick(c, String(Math.floor(Math.random() * 10)));
-        setTimeout(go, 110);
-      })();
-    });
-    /* Garantía: pase lo que pase, la cifra final queda correcta */
-    setTimeout(() => { if (el.__tok === tok) settle(); }, longest + 600);
+  const numberObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => entries.forEach(e => {
+    if (e.isIntersecting) { revealNumber(e.target); numberObserver.unobserve(e.target); }
+  }), {threshold:.4}) : null;
+  function presentNumber(el) {
+    if (el.firstElementChild?.classList.contains('bv-number')) return;
+    const text = el.textContent.trim();
+    if (!/\d/.test(text)) { el.removeAttribute('role'); el.removeAttribute('aria-label'); numberObserver?.unobserve(el); return; }
+    const span = document.createElement('span'); span.className = 'bv-number'; span.textContent = text;
+    let width = 0; for (const ch of text) width += /\d/.test(ch) ? .65 : /[.,\s]/.test(ch) ? .3 : .6;
+    span.style.setProperty('--bv-number-width', Math.max(1,width).toFixed(2));
+    el.setAttribute('role','img'); el.setAttribute('aria-label',text); el.replaceChildren(span);
+    if (numberObserver) numberObserver.observe(el); else revealNumber(el);
   }
-  function build(el, text) {
-    const wrap = document.createElement('span');
-    wrap.className = 'flip' + (text.length > 7 ? ' long' : '');
-    let w = 0; for (const ch of text) w += /\d/.test(ch) ? 1.04 : (ch === '.' || ch === ',' ? .4 : .55);
-    wrap.style.setProperty('--w', w.toFixed(2));   /* ancho relativo: la cifra ocupa todo el ancho de su tarjeta */
-    const cells = [];
-    for (const ch of text) {
-      const s = document.createElement('span');
-      if (/\d/.test(ch)) { s.className = 'cell'; const i = document.createElement('i'); i.textContent = ch; s.append(i); cells.push([s, ch]); }
-      else { s.className = 'sep'; s.textContent = ch === ' ' ? ' ' : ch; }
-      wrap.append(s);
-    }
-    el.__cells = cells;
-    el.setAttribute('role', 'img'); el.setAttribute('aria-label', text);   /* lectores de pantalla: la cifra final */
-    el.replaceChildren(wrap);
-    runFlip(el);
-  }
-  const isMine = el => !!(el.firstElementChild && el.firstElementChild.classList.contains('flip'));
-  const mo = new MutationObserver(recs => recs.forEach(r => {
-    const el = r.target, t = el.textContent.trim();
-    if (!isMine(el) && /\d/.test(t)) build(el, t);
-  }));
-  document.querySelectorAll('[data-bind]').forEach(el => {
-    mo.observe(el, { childList: true });
-    const t = el.textContent.trim(); if (/\d/.test(t)) build(el, t);
-  });
-  // Cada cifra gira al entrar en pantalla; los valores finales y aria-label no cambian.
-  const flipObserver=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){runFlip(e.target);flipObserver.unobserve(e.target);}}),{threshold:.4}):null;
-  document.querySelectorAll('[data-bind]').forEach(el=>flipObserver?.observe(el));
+  const numberMutation = new MutationObserver(records => records.forEach(r => presentNumber(r.target)));
+  document.querySelectorAll('[data-bind]').forEach(el => { numberMutation.observe(el,{childList:true}); presentNumber(el); });
+  window.addEventListener('biovolt:motion',()=>activeNumbers.forEach(animation=>animation.cancel()));
+  window.addEventListener('pagehide',e=>{ activeNumbers.forEach(animation=>animation.cancel()); if(!e.persisted){ numberObserver?.disconnect(); numberMutation.disconnect(); } });
 })();
 
 /* =====================================================================

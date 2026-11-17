@@ -1,6 +1,14 @@
 # BioVolt AI
 
-## Revisión actual: movimiento perceptible sin scroll
+## Revisión actual: tipografía y cifras más limpias
+
+`dev/biovolt-tipografia-numeros` incorpora Manrope variable, alojada localmente y embebida también en la copia descargable. Sustituye el tablero de dígitos por una entrada suave de la cifra completa, sin valores aleatorios ni cambios de formato/unidad. Mantiene los paneles translúcidos selectivos y el movimiento de partículas. Fuente bajo SIL OFL 1.1, incluida en `assets/fonts`. Validación: 75 pruebas de navegador y 36 de lógica aprobadas; Manrope incrustada en el PDF de prueba. Detalles y validación en [docs/TIPOGRAFIA-NUMEROS.md](docs/TIPOGRAFIA-NUMEROS.md). Esta revisión sigue local, sin subida ni publicación.
+
+## Revisión anterior: paneles translúcidos donde hacen falta
+
+En `dev/biovolt-paneles-translucidos`, la mesa de ayuda, la conversación del asistente y los controles de reportes/PDF recuperan superficies discretas y translúcidas. El resto mantiene la presentación transparente y las partículas continúan moviéndose. Cambio limitado a estilos y HTML generado; lógica, API y modelos sin cambios. Validación: 27 pruebas de navegador, revisión en ambos temas y PDF de demostración generado. Detalles en [docs/PANELES-TRANSLUCIDOS.md](docs/PANELES-TRANSLUCIDOS.md). Esta revisión nueva se entrega localmente, sin subida ni despliegue.
+
+## Revisión anterior: movimiento perceptible sin scroll
 
 La rama local `dev/biovolt-movimiento-permanente` conserva la interfaz transparente y añade movimiento autónomo visible a las partículas: giro, inclinación, expansión y desplazamiento. El scroll sigue eligiendo la forma, pero la escena continúa al detenerse bajo tablas, formularios y hasta el pie. WebGL y Canvas 2D comparten la misma trayectoria temporal. Se conserva la pausa manual y la suspensión de pestaña oculta. No cambian API, datos ni modelos. Validación: 70 pruebas de navegador y 36 de lógica aprobadas. Detalles en [docs/MOVIMIENTO-PERMANENTE.md](docs/MOVIMIENTO-PERMANENTE.md). Sin push ni publicación.
 

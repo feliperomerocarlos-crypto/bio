@@ -1,0 +1,15 @@
+/* Manrope variable, SIL Open Font License 1.1: fonts/OFL-Manrope.txt. Sin fuentes remotas. */
+@font-face{font-family:"BioVolt Manrope";font-style:normal;font-weight:200 800;font-display:swap;src:url("fonts/manrope-latin-variable.woff2") format("woff2")}
+:root{--font-display:"BioVolt Manrope",Manrope,"Segoe UI",sans-serif;--font-text:"BioVolt Manrope",Manrope,"Segoe UI",sans-serif}
+body{letter-spacing:-.012em}
+.display,.h-lg,.bv-cinema__line,.bv-cinema__brand{font-family:var(--font-display);font-weight:550;letter-spacing:-.045em}
+.bv-story-head .h-lg{font-weight:550;letter-spacing:-.045em}
+.panel-title,.h-sm{font-family:var(--font-display);letter-spacing:-.025em}
+.lead,.bv-story-head .lead{letter-spacing:-.015em}
+.grad-text{font-style:normal}
+.btn{font-weight:600;letter-spacing:-.015em}
+.stat-value{font-family:var(--font-display);font-weight:500;line-height:1.15;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.035em;container-type:inline-size}
+.bv-number{display:inline-block;max-width:100%;font:inherit;font-size:clamp(20px,calc(92cqw / var(--bv-number-width,4)),44px);line-height:1.15;white-space:normal;overflow-wrap:anywhere;vertical-align:baseline;color:var(--accent-text)}
+.bv-brief-stats .bv-number{font-size:clamp(20px,calc(90cqw / var(--bv-number-width,4)),38px)}
+@media(max-width:733px){.bv-brief-stats .bv-number{font-size:clamp(18px,calc(90cqw / var(--bv-number-width,4)),28px)}}
+@media print{body>#printReport{font-family:var(--font-text)}.bv-number{opacity:1!important;transform:none!important}}

@@ -49,9 +49,6 @@ html[data-theme="light"] .bv-story-head .h-lg{text-shadow:0 4px 35px #f5fff288}
 .bv-story-workspace .grid{gap:32px}
 .bv-story-workspace .module-card{gap:20px;min-height:240px}
 .bv-story-workspace .stat-value{font-weight:450;letter-spacing:-.04em}
-.bv-story-workspace .flip{color:var(--accent-text);font-weight:500}
-.bv-story-workspace .flip .cell{background:transparent;box-shadow:none;border-radius:0}
-.bv-story-workspace .flip .cell::after{content:none}
 .bv-story-workspace .tilt,.bv-story-workspace .tilt:hover{transform:none;translate:none;box-shadow:none}
 .bv-story-workspace :is(#modulos,#faq)::before{content:none}
 .bv-story-workspace :is(.input,.select,.textarea){background-color:transparent;border:0;border-bottom:1px solid var(--outline);border-radius:0;padding-left:0;box-shadow:none}
@@ -75,6 +72,28 @@ html[data-theme="light"] .bv-story-head .h-lg{text-shadow:0 4px 35px #f5fff288}
 .bv-story-chapter .bv-brief-stats{border:0}
 .bv-section-rail{background:transparent;border:0;backdrop-filter:none}
 .footer{background:transparent;border:0}
+/* Superficies de lectura solo en soporte, conversación y generación de reportes. */
+@media screen{
+ .bv-story-workspace{--bv-panel-bg:rgba(7,18,13,.72);--bv-panel-edge:rgba(142,183,153,.23);--bv-panel-padding:24px}
+ html[data-theme="light"] .bv-story-workspace{--bv-panel-bg:rgba(248,253,246,.8);--bv-panel-edge:rgba(39,105,54,.2)}
+ #view-ayuda .bv-story-workspace :is(.access-panel,.help-form,.help-layout>section),
+ #view-asistente .bv-story-workspace .chat,
+ #view-analitica .bv-story-workspace .card:has(#reportType){background:var(--bv-panel-bg);border:1px solid var(--bv-panel-edge);border-radius:22px;padding:var(--bv-panel-padding);box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+ #view-ayuda .help-layout{gap:24px}
+ #view-ayuda .help-form{top:92px}
+ #view-ayuda .help-layout>section{min-width:0}
+ #view-ayuda .ticket{padding:20px 0;border-bottom:1px solid var(--bv-panel-edge)}
+ #view-ayuda .ticket+.ticket{margin-top:0}
+ #view-ayuda .ticket:hover{background:rgba(142,183,153,.06)}
+ #view-asistente .bv-story-workspace .chat{padding:0}
+ #view-asistente .chat :is(.chat-head,.chat-log,.chat-foot){padding:var(--bv-panel-padding)}
+ #view-asistente .chat-head{border-bottom:1px solid var(--bv-panel-edge)}
+ #view-asistente .chat-foot{border-top:1px solid var(--bv-panel-edge)}
+ #view-analitica .card:has(#reportType) .toolbar{align-items:flex-end;margin-bottom:0;gap:18px}
+ #view-analitica .card:has(#reportType) .toolbar>label{flex:1;min-width:min(210px,100%)}
+ #view-analitica #reportType{display:block;width:100%;margin-top:8px}
+ @media(max-width:733px){.bv-story-workspace{--bv-panel-padding:18px}#view-ayuda .help-layout{gap:20px}}
+}
 @media(max-width:1067px){.bv-story-workspace{width:100%}.bv-story-start{max-width:calc(100% - 48px)}.bv-story-head>div:first-child{width:56%}.bv-story-head .h-lg{font-size:clamp(37px,5.8vw,65px)}}
 @media(max-width:733px){
  main>.bv-story-chapter{padding-block:36px 64px}
