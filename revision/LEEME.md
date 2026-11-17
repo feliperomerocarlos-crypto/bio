@@ -1,6 +1,8 @@
-# Revisar la mesa de ayuda sin publicar
+# Revisar BioVolt con movimiento permanente sin publicar
 
 Esta copia incluye los estilos y scripts. No instala paquetes, no envía datos a la red y no usa Gemini ni SMTP reales.
+
+La apertura y las otras siete secciones comparten ahora la misma nube de partículas: se transforma al bajar y se revierte al subir, también detrás de los paneles de datos. Para revisar el recorrido visual, abre Inicio y recorre las ocho secciones haciendo scroll. Los enlaces de la barra y del indicador lateral te llevan a cada módulo; la URL usa #inventario, #ayuda, etc. Baja y vuelve a subir: la misma nube cambia de forma y los gráficos responden al recorrido. El movimiento se mantiene activo aunque el sistema solicite reducirlo. El botón de pausa/reproducción de la barra permite detenerlo por elección propia; también se conserva el selector de Inicio. Las tablas, tarjetas y mensajes ahora son transparentes, sin fondos de vidrio ni bordes. Las partículas giran, se inclinan y se expanden suavemente aunque dejes de hacer scroll, también bajo tablas y hasta el pie. Al escribir o abrir un diálogo, continúan animadas con atenuación suave. Si no hay WebGL, se intenta una escena animada Canvas 2D. Extrae primero el ZIP completo y abre el HTML en un navegador que ejecute JavaScript. En un visor de archivos los scripts pueden no ejecutarse.
 
 1. Abre `revision/index.html` con un navegador actual.
 2. Ve a **Mesa de ayuda** y crea una solicitud con datos ficticios.

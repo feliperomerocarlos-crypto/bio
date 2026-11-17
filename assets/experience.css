@@ -1,0 +1,37 @@
+/* Recorrido visual común: solo presentación; la información y los controles conservan su DOM. */
+.bv-world{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .7s ease;contain:strict}
+.bv-world[data-visible="true"]{opacity:1}
+.bv-world canvas{display:block;width:100%;height:100%}
+body>main,body>footer{position:relative;z-index:1}
+.view-head.bv-chapter{position:relative;align-items:center;min-height:340px;padding-block:22px 40px;gap:36px;isolation:isolate}
+.bv-chapter>div:first-child{position:relative;z-index:1;flex:1;min-width:0}
+.bv-chapter .h-lg{max-width:720px;text-wrap:balance}
+.bv-chapter .lead{max-width:590px;text-wrap:pretty}
+.view-head .gesture.bv-portal{position:relative;display:block;flex:0 0 39%;width:39%;height:300px;border-radius:40px;background:transparent;border:0;box-shadow:none;overflow:visible;backdrop-filter:none;-webkit-backdrop-filter:none}
+.bv-portal>svg{width:100%;height:100%;display:block;opacity:.85;transition:opacity .5s;filter:drop-shadow(0 18px 36px #07180a66)}
+body[data-bv-world="webgl"] .bv-portal>svg,body[data-bv-world="canvas2d"] .bv-portal>svg{width:100%;height:100%;display:block;opacity:0}
+.bv-portal::before{display:none}
+.bv-portal::after{content:'BIOVOLT / VISUAL CONCEPTUAL';position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:9px;font-weight:500;letter-spacing:.19em;color:var(--on-surface-variant);opacity:.65}
+.bv-motion-toggle{color:var(--on-surface-variant);flex:none}
+.bv-motion-toggle[aria-pressed="true"]{color:var(--accent-text)}
+.bv-motion-toggle svg{width:18px;height:18px;display:block;pointer-events:none}
+.bv-reading-progress{position:absolute;left:21px;right:21px;bottom:0;height:1px;pointer-events:none;overflow:hidden;opacity:.65}
+.bv-reading-progress i{display:block;height:100%;background:var(--accent-text);transform:scaleX(var(--bv-read,0));transform-origin:left;will-change:transform}
+/* Los datos se animan con transformaciones: sus alturas, unidades y valores no cambian. */
+.bar{transform-origin:center bottom}
+.track>span{transform-origin:left center}
+.bv-section-title{position:relative}
+.bv-section-title::after{content:'';display:block;width:42px;height:2px;margin-top:14px;background:linear-gradient(90deg,var(--accent-text),transparent);opacity:.6}
+/* No se añaden desplazamientos continuos a formularios, tablas, tickets o mensajes. */
+.bv-chapter .eyebrow{letter-spacing:.08em}
+@media(min-width:1068px){.view-head.bv-chapter{min-height:380px}.view-head .gesture.bv-portal{height:335px}}
+@media(max-width:733px){
+ .view-head.bv-chapter{flex-direction:column;align-items:stretch;min-height:0;gap:8px;padding-block:16px 24px;margin-bottom:22px}
+ .bv-chapter>div:first-child{flex:auto}
+ .view-head .gesture.bv-portal{flex:auto;width:100%;height:190px;max-width:390px;align-self:center}
+ .bv-portal::after{font-size:8px;bottom:-2px}
+ .bv-chapter .lead{font-size:18px;line-height:1.45}
+ .bv-reading-progress{left:14px;right:14px}
+ .nav-actions{gap:0}
+}
+@media print{.bv-world,.bv-motion-toggle,.bv-reading-progress{display:none!important}}

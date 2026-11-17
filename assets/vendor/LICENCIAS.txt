@@ -1,0 +1,9 @@
+Three.js 0.160.0 — Copyright 2010-2023 Three.js Authors; MIT.
+https://github.com/mrdoob/three.js/blob/r160/LICENSE
+
+GSAP / ScrollTrigger 3.12.5 — Copyright 2008-2024 GreenSock.
+Los encabezados de copyright y el enlace de licencia se conservan en los archivos.
+https://gsap.com/standard-license/
+
+Copias exactas de cdnjs, para revisión autocontenida y pruebas reproducibles sin red.
+Fuentes y SHA-256 registrados en fuentes.json.

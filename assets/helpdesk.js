@@ -114,11 +114,11 @@
       try{draftKey=JSON.parse(sessionStorage.getItem('bvHelpdeskDraft')||'null');}catch{}
       if(!draftKey||draftKey.fingerprint!==fingerprint)draftKey={fingerprint,key:key()};
       try{sessionStorage.setItem('bvHelpdeskDraft',JSON.stringify(draftKey));}catch{}
-      const data=await api(API,{method:'POST',headers:{'Content-Type':'application/json','x-idempotency-key':draftKey.key},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+      const data=await api(API,{method:'POST',headers:{'Content-Type':'application/json','x-idempotency-key':draftKey.key},body:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
       if(requestEpoch!==epoch)return;
       saveAccess(data.ticket.id,data.accessToken);upsert(data.ticket);draftKey=null;try{sessionStorage.removeItem('bvHelpdeskDraft');}catch{}
       form.reset();$('#tDescCount').textContent='0/500';Object.keys(rules).forEach(name=>{form.elements[name].removeAttribute('aria-invalid');$('#'+form.elements[name].id+'-err').hidden=true;});
-      render();broadcast();toast(data.ticket.id+' guardada. El agente inicia la atención automáticamente.');await openTicket(data.ticket.id);if(adminPinCache)await load(true);
+      render();broadcast();toast(data.ticket.id+' guardada. El agente inicia la atención automáticamente.');await openTicket(data.ticket.id);if(data.dosPasos===true){api('/api/agente',{method:'POST',headers:{...headers(data.ticket.id,true),'Content-Type':'application/json'},body:JSON.stringify({id:data.ticket.id}),signal:AbortSignal.timeout(25000)}).then(()=>{if(currentId===data.ticket.id)refreshDetail(true);}).catch(error=>toast('La solicitud quedó guardada. '+errorText(error)));}if(adminPinCache)await load(true);
     }catch(error){toast(errorText(error));}finally{busy=false;button.disabled=false;button.textContent='Enviar solicitud';}
   });
 

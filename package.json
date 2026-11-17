@@ -19,6 +19,7 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/serve.mjs",
     "build:review": "node scripts/build-review.mjs",
-    "build:scene": "node scripts/build-cinematic-engine.mjs"
+    "build:scene": "node scripts/build-cinematic-engine.mjs",
+    "build:page": "node scripts/build-page.mjs"
   }
 }

@@ -1,4 +1,6 @@
 import {test,expect} from '@playwright/test';
+import {cdn} from './cdn-fixture.mjs';
+test.beforeEach(async({page})=>cdn(page));
 async function reset(request,scenario='success'){await request.post('/__test/reset',{data:{scenario}});}
 async function create(page){
   await page.goto('/#/ayuda');await page.locator('#tName').fill('Usuario de prueba');await page.locator('#tEmail').fill('owner@example.invalid');await page.locator('#tSubject').fill('Consultar inventario de prueba');await page.locator('#tCategory').selectOption('Inventario');await page.locator('#tDescription').fill('Necesito consultar el inventario de un material.');await page.locator('#ticketForm [type=submit]').click();await expect(page.locator('#ticketDialog')).toBeVisible();await expect(page.locator('#dlgBody')).toContainText('Agente IA · Gemini',{timeout:15000});
