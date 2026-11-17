@@ -22,9 +22,6 @@ main>#view-inicio{padding-top:0}
 .bv-word{display:inline-block;will-change:auto}
 .bv-brief-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;max-width:550px;border-top:1px solid var(--outline);margin-top:28px;padding-top:22px}
 .bv-brief-stats .stat-value{font-size:clamp(25px,2.6vw,42px);line-height:1.15;min-height:1.4em;max-width:100%;overflow-wrap:anywhere;color:var(--accent-text)}
-.bv-brief-stats .flip{font-size:1em;white-space:nowrap}
-.bv-brief-stats .flip .cell{width:.7em;min-width:.7em;height:1.25em;font-size:1em;line-height:1.25em;border-radius:3px;box-shadow:none;background:transparent;color:inherit}
-.bv-brief-stats .flip .sep{width:auto;min-width:.2em;font-size:.65em}
 .bv-brief-stats .small{font-size:10px;letter-spacing:.04em;margin-top:8px}
 .bv-chapter .swoosh{display:none}
 .bv-chapter .lead{margin-top:25px}
