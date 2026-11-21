@@ -1,10 +1,10 @@
 # Avatar de voz en BioVolt
 
-En Asistente, el chat de texto sigue disponible y el panel **Habla con el avatar** abre Vivora dentro de la página. El estudio pide su propia sesión y usa sus propios servicios de voz. La página padre no recibe audio, credenciales ni conversaciones del estudio. Cerrar el panel retira el iframe. Para conversar basta el micrófono. El visitante puede seleccionar un avatar disponible para su cuenta o subir una imagen en Vivora.
+En Asistente, el chat de texto sigue disponible y el panel opcional **Habla con el avatar** abre Vivora dentro de la página. El estudio pide su propia sesión y usa sus propios servicios de voz. La página padre no recibe audio, credenciales ni conversaciones del estudio. Cerrar el panel retira el iframe. Para conversar basta el micrófono. El visitante puede seleccionar un avatar disponible para su cuenta o subir una imagen en Vivora.
 
 ## Conectar la instancia
 
-En `src/page.html`, busca el único atributo `data-vivora-url=""` y coloca entre las comillas la URL HTTPS de tu estudio, por ejemplo `https://avatar.example.org/studio`. Sustituye el dominio de ejemplo por el tuyo. Es una dirección pública sin tokens ni contraseñas. El panel vacío muestra un aviso y no inicia conexiones. Localmente puedes usar `http://localhost:3000/studio` si BioVolt también se sirve desde loopback.
+En `src/page.html`, busca el único atributo `data-vivora-url=""` y coloca entre las comillas la URL HTTPS de tu estudio, por ejemplo `https://avatar.example.org/studio`. Sustituye el dominio de ejemplo por el tuyo. Es una dirección pública sin tokens ni contraseñas. El panel externo permanece oculto mientras la URL esté vacía. Los controles de voz del chat funcionan por separado. Localmente puedes usar `http://localhost:3000/studio` si BioVolt también se sirve desde loopback.
 
 Desde la raíz de BioVolt ejecuta `npm run build:review` y `npm run build`. Para probar la conexión local, ejecuta `npm run dev` y abre `http://127.0.0.1:4173/#asistente` (para pruebas de cookies en el mismo sitio, abre BioVolt y Vivora usando ambos el nombre localhost). La copia descargable `revision/index.html` siempre mantiene el avatar desconectado.
 

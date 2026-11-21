@@ -1154,6 +1154,14 @@ html[data-theme="light"] .bv-story-head .h-lg{text-shadow:0 4px 35px #f5fff288}
 @media print{.bv-particle-story{display:none!important}.bv-story-bridge{height:auto}.view-head.bv-story-head{position:static;min-height:0}.bv-story-head>div:first-child{opacity:1;transform:none}.bv-story-workspace{width:100%;background:#fff;box-shadow:none}}
 html[data-bv-motion="off"] .bv-story-head>div:first-child,html[data-bv-motion="off"] .bv-story-head>.btn{opacity:1!important;transform:none!important}
 
+.voice-tools{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;margin-bottom:12px}
+.voice-tools [hidden],.vivora-panel[hidden]{display:none!important}
+.voice-avatar{display:grid;place-items:center;width:48px;height:48px;flex:none;background:#11281b;border:1px solid #55755a;border-radius:50%}
+.voice-avatar svg{width:39px;height:32px}
+.chat[data-voice="listening"] .voice-avatar,.chat[data-voice="speaking"] .voice-avatar{border-color:#a4e636;box-shadow:0 0 0 4px #86c64b36}
+html:not([data-bv-motion="off"]) .chat[data-voice="speaking"] .voice-avatar svg{animation:bv-avatar-voice 1.2s ease-in-out infinite alternate}
+@keyframes bv-avatar-voice{to{transform:translateY(-1px) scale(1.06)}}
+
 </style>
 <style>
 /* Manrope variable, SIL Open Font License 1.1: fonts/OFL-Manrope.txt. Sin fuentes remotas. */
@@ -1449,7 +1457,7 @@ body{letter-spacing:-.012em}
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini) conectado a la base de datos de BioVolt en modo de solo lectura. Por privacidad no accede a datos personales de clientes ni empleados.</span></div>
     <section class="card chat" aria-label="Chat con BioVolt Assistant">
       <div class="chat-head">
-        <div class="chat-id"><span class="ico-circle" data-icon="leaf"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
+        <div class="chat-id"><span class="voice-avatar" aria-hidden="true"><svg viewBox="0 0 1000 730"><use href="#bv-logo"/></svg></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
         <button class="btn btn-ghost btn-sm" type="button" id="clearChat">Limpiar</button>
       </div>
       <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversación">
@@ -1460,6 +1468,11 @@ body{letter-spacing:-.012em}
         </div>
       </div>
       <div class="chat-foot">
+        <div class="voice-tools" aria-label="Controles de voz" role="group">
+          <button type="button" class="btn btn-outline btn-sm" id="voiceMic" hidden>Hablar</button>
+          <button type="button" class="btn btn-outline btn-sm" id="voiceRead" hidden>Escuchar respuesta</button>
+          <span id="voiceStatus" class="small muted" role="status"></span>
+        </div>
         <div class="chat-chips" id="chatChips" aria-label="Sugerencias"></div>
         <form class="chat-form" id="chatForm" autocomplete="off">
           <label class="sr-only" for="chatInput">Escribe tu pregunta</label>
@@ -1468,7 +1481,7 @@ body{letter-spacing:-.012em}
         </form>
       </div>
     </section>
-    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="">
+    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="" hidden>
       <h2 class="panel-title" id="vivora-title">Habla con el avatar</h2>
       <p class="small muted" id="vivora-status">La conversación por voz estará disponible cuando se conecte Vivora.</p>
       <button class="btn btn-outline" id="vivora-toggle" type="button" aria-expanded="false" aria-controls="vivora-studio" hidden>Abrir avatar</button>
@@ -1992,6 +2005,7 @@ function showTyping(){
 const hideTyping = () => { const t = $('#typingRow'); if (t) t.remove(); };
 async function sendMessage(text){
   text = text.trim(); if (!text || chatBusy) return;
+  document.dispatchEvent(new Event('bv-chat-start'));
   chatBusy = true; $('#chatSend').disabled = true; chatLog.setAttribute('aria-busy', 'true');
   $('#chatInput').value = '';
   addMsg('user', text); history.push({ role:'user', content:text }); showTyping();
@@ -2000,10 +2014,11 @@ async function sendMessage(text){
     hideTyping(); addMsg('assistant', answer.text, false, answer.source); history.push({ role:'assistant', content:answer.text, source:answer.source });
     history.splice(0, Math.max(0, history.length - 24));
     try { sessionStorage.setItem('bvChat', JSON.stringify(history)); } catch {}
+    return answer;
   } catch (err) {
     hideTyping(); addMsg('assistant', 'No pude responder en este momento. Inténtalo de nuevo en unos segundos.', true);
   } finally {
-    chatBusy = false; $('#chatSend').disabled = false; chatLog.removeAttribute('aria-busy'); $('#chatInput').focus();
+    chatBusy = false; $('#chatSend').disabled = false; chatLog.removeAttribute('aria-busy'); $('#chatInput').focus(); document.dispatchEvent(new Event('bv-chat-ready'));
   }
 }
 $('#chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage($('#chatInput').value); });
@@ -2625,6 +2640,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
   if ((!localTest && url.protocol !== 'https:') || url.username || url.password) return;
 
   status.textContent = 'Abre Vivora e inicia sesión para hablar con el avatar. El navegador te pedirá permiso al usar el micrófono.';
+  panel.hidden = false;
   button.hidden = false;
   button.addEventListener('click', () => {
     const open = studio.hidden;
@@ -2643,6 +2659,115 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
     button.setAttribute('aria-expanded', String(open));
     button.textContent = open ? 'Cerrar avatar' : 'Abrir avatar';
   });
+})();
+
+</script>
+<script>
+(() => {
+  const mic = document.querySelector('#voiceMic');
+  const read = document.querySelector('#voiceRead');
+  const status = document.querySelector('#voiceStatus');
+  const chat = mic.closest('.chat');
+  const input = document.querySelector('#chatInput');
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const synth = window.speechSynthesis;
+  const canSpeak = Boolean(synth && window.SpeechSynthesisUtterance);
+  const canListen = Boolean(window.isSecureContext && Recognition);
+  const hint = canListen ? 'Pulsa Hablar y di tu pregunta.' : 'Puedes escribir tu pregunta. El dictado no está disponible en este navegador.';
+  let recognition;
+  let utterance;
+  let revision = 0;
+
+  function update(message) {
+    mic.hidden = !canListen;
+    mic.disabled = chatBusy;
+    mic.textContent = recognition ? 'Cancelar micrófono' : 'Hablar';
+    const latest = history.at(-1);
+    read.hidden = !canSpeak || latest?.role !== 'assistant' || chatBusy;
+    read.textContent = utterance ? 'Detener lectura' : 'Escuchar respuesta';
+    chat.dataset.voice = recognition ? 'listening' : utterance ? 'speaking' : 'idle';
+    status.textContent = message;
+  }
+
+  function stop() {
+    revision++;
+    const previous = recognition;
+    recognition = null;
+    if (previous) previous.abort();
+    if (utterance) {
+      utterance = null;
+      synth.cancel();
+    }
+    update(hint);
+  }
+
+  function speak(text) {
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = 'es-CO';
+    utterance = speech;
+    speech.onend = speech.onerror = event => {
+      if (utterance !== speech) return;
+      utterance = null;
+      update(event.type === 'error' ? 'La lectura no está disponible. Puedes leer la respuesta en el chat.' : hint);
+    };
+    update('Leyendo la respuesta…');
+    try { synth.speak(speech); }
+    catch { utterance = null; update('La respuesta está disponible en el chat.'); }
+  }
+
+  read.addEventListener('click', () => {
+    const wasReading = Boolean(utterance);
+    stop();
+    if (!wasReading && history.at(-1)?.role === 'assistant') speak(history.at(-1).content);
+  });
+
+  mic.addEventListener('click', () => {
+    const wasListening = Boolean(recognition);
+    stop();
+    if (wasListening || chatBusy) return;
+    const session = new Recognition();
+    recognition = session;
+    session.lang = 'es-CO';
+    session.interimResults = false;
+    session.continuous = false;
+    session.onerror = event => {
+      if (recognition !== session) return;
+      recognition = null;
+      update(event.error === 'not-allowed' || event.error === 'service-not-allowed'
+        ? 'El micrófono está bloqueado. Puedes permitirlo en tu navegador o escribir.'
+        : 'No se pudo escuchar la pregunta. Puedes volver a hablar o escribir.');
+    };
+    session.onend = () => {
+      if (recognition === session) { recognition = null; update(hint); }
+    };
+    session.onresult = async event => {
+      if (recognition !== session) return;
+      const result = event.results[event.resultIndex];
+      if (!result?.isFinal) return;
+      const text = result[0].transcript.trim();
+      stop();
+      if (!text || chatBusy) return;
+      if (input.value.trim() || text.length > input.maxLength) {
+        update('Ya hay un borrador o la pregunta es muy larga. Envía el texto escrito o dicta una pregunta breve.');
+        return;
+      }
+      const reply = sendMessage(text);
+      const turn = revision;
+      const answer = await reply;
+      if (answer && turn === revision && canSpeak && !document.hidden) speak(answer.text);
+    };
+    update('Escuchando… Tu pregunta se enviará cuando termines de hablar.');
+    try { session.start(); }
+    catch { recognition = null; update('No se pudo abrir el micrófono. Puedes escribir.'); }
+  });
+
+  document.addEventListener('bv-chat-start', () => { stop(); mic.disabled = true; read.hidden = true; });
+  document.addEventListener('bv-chat-ready', () => update(hint));
+  document.querySelector('#clearChat').addEventListener('click', stop);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  window.addEventListener('pagehide', stop);
+  window.addEventListener('hashchange', stop);
+  update(hint);
 })();
 
 </script>

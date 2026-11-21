@@ -1042,7 +1042,7 @@ main{padding-top:84px}
     <div class="notice"><span data-icon="info" data-size="18"></span><span>Asistente con IA generativa (Gemini) conectado a la base de datos de BioVolt en modo de solo lectura. Por privacidad no accede a datos personales de clientes ni empleados.</span></div>
     <section class="card chat" aria-label="Chat con BioVolt Assistant">
       <div class="chat-head">
-        <div class="chat-id"><span class="ico-circle" data-icon="leaf"></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
+        <div class="chat-id"><span class="voice-avatar" aria-hidden="true"><svg viewBox="0 0 1000 730"><use href="#bv-logo"/></svg></span><div><h2 class="panel-title" style="font-size:17px">Asistente BioVolt</h2><p class="small muted">Impulsado por Gemini</p></div></div>
         <button class="btn btn-ghost btn-sm" type="button" id="clearChat">Limpiar</button>
       </div>
       <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversación">
@@ -1053,6 +1053,11 @@ main{padding-top:84px}
         </div>
       </div>
       <div class="chat-foot">
+        <div class="voice-tools" aria-label="Controles de voz" role="group">
+          <button type="button" class="btn btn-outline btn-sm" id="voiceMic" hidden>Hablar</button>
+          <button type="button" class="btn btn-outline btn-sm" id="voiceRead" hidden>Escuchar respuesta</button>
+          <span id="voiceStatus" class="small muted" role="status"></span>
+        </div>
         <div class="chat-chips" id="chatChips" aria-label="Sugerencias"></div>
         <form class="chat-form" id="chatForm" autocomplete="off">
           <label class="sr-only" for="chatInput">Escribe tu pregunta</label>
@@ -1061,7 +1066,7 @@ main{padding-top:84px}
         </form>
       </div>
     </section>
-    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="">
+    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="" hidden>
       <h2 class="panel-title" id="vivora-title">Habla con el avatar</h2>
       <p class="small muted" id="vivora-status">La conversación por voz estará disponible cuando se conecte Vivora.</p>
       <button class="btn btn-outline" id="vivora-toggle" type="button" aria-expanded="false" aria-controls="vivora-studio" hidden>Abrir avatar</button>
@@ -1529,6 +1534,7 @@ function showTyping(){
 const hideTyping = () => { const t = $('#typingRow'); if (t) t.remove(); };
 async function sendMessage(text){
   text = text.trim(); if (!text || chatBusy) return;
+  document.dispatchEvent(new Event('bv-chat-start'));
   chatBusy = true; $('#chatSend').disabled = true; chatLog.setAttribute('aria-busy', 'true');
   $('#chatInput').value = '';
   addMsg('user', text); history.push({ role:'user', content:text }); showTyping();
@@ -1537,10 +1543,11 @@ async function sendMessage(text){
     hideTyping(); addMsg('assistant', answer.text, false, answer.source); history.push({ role:'assistant', content:answer.text, source:answer.source });
     history.splice(0, Math.max(0, history.length - 24));
     try { sessionStorage.setItem('bvChat', JSON.stringify(history)); } catch {}
+    return answer;
   } catch (err) {
     hideTyping(); addMsg('assistant', 'No pude responder en este momento. Inténtalo de nuevo en unos segundos.', true);
   } finally {
-    chatBusy = false; $('#chatSend').disabled = false; chatLog.removeAttribute('aria-busy'); $('#chatInput').focus();
+    chatBusy = false; $('#chatSend').disabled = false; chatLog.removeAttribute('aria-busy'); $('#chatInput').focus(); document.dispatchEvent(new Event('bv-chat-ready'));
   }
 }
 $('#chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage($('#chatInput').value); });
@@ -1779,6 +1786,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 <script src="assets/enhancements.js"></script>
 <script src="assets/helpdesk.js"></script>
 <script src="assets/vivora.js"></script>
+<script src="assets/assistant-voice.js"></script>
 <script src="assets/scene-cdn.js"></script>
 <script src="assets/cinematic.js"></script>
 <script src="assets/experience.js"></script>
