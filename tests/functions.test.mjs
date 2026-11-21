@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { issueToken } from '../lib/access.mjs';
 // Doble de MySQL: ningún test de funciones abre conexiones de red.
-const mock='export default { createPool(){ return { query: (...args) => globalThis.mockQuery(...args) }; } };';
+const mock='export default { createPool(){ return { query: (...args) => globalThis.mockQuery(...args), getConnection: async()=>({query:(...args)=>globalThis.mockQuery(...args), release(){}, destroy(){}}) }; } };';
 registerHooks({resolve(specifier,context,next){return specifier==='mysql2/promise'?{url:'data:text/javascript,'+encodeURIComponent(mock),shortCircuit:true}:next(specifier,context);}});
 process.env.DB_HOST='test.invalid';process.env.DB_USER='test';process.env.DB_NAME='test';process.env.GEMINI_API_KEY='test-key-never-production';process.env.TICKET_TOKEN_SECRET='test-only-private-token-secret-32bytes-minimum';
 process.env.AYUDA_PIN='test-pin';

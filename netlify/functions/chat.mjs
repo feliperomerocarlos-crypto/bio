@@ -11,6 +11,9 @@
 import mysql from "mysql2/promise";
 
 const MODEL = "gemini-3.6-flash";
+const GEMINI_TIMEOUT_MS = 35000;
+const SNAPSHOT_BUDGET_MS = 8000;
+const HISTORY_CHAR_LIMIT = 12000;
 
 const BASE_INSTRUCTION = `
 Eres BioVolt Assistant, el asistente virtual de BioVolt, un proyecto académico colombiano de gestión sostenible que aprovecha residuos orgánicos y agrícolas para producir energía.
@@ -91,6 +94,39 @@ function getPool() {
 
 const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
 let snapshotCache = { at: 0, text: null };
+let snapshotLoading = null;
+
+// El plazo incluye adquirir la conexión. Una conexión que llega tarde se libera
+// sin ejecutar SQL; una consulta que excede el plazo destruye su conexión.
+function beforeDeadline(promise, deadline, onLate) {
+  return new Promise((resolve, reject) => {
+    let expired = false;
+    const timer = setTimeout(() => {
+      expired = true;
+      reject(new DOMException("Snapshot deadline", "TimeoutError"));
+    }, Math.max(0, deadline - Date.now()));
+    Promise.resolve(promise).then(value => {
+      clearTimeout(timer);
+      if (expired) onLate?.(value); else resolve(value);
+    }, error => { clearTimeout(timer); if (!expired) reject(error); });
+  });
+}
+
+async function snapshotQuery(sql, deadline) {
+  const connection = await beforeDeadline(getPool().getConnection(), deadline, late => late.release());
+  let destroyed = false;
+  try {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new DOMException("Snapshot deadline", "TimeoutError");
+    return await beforeDeadline(connection.query({ sql, timeout: remaining }), deadline);
+  } catch (error) {
+    if (["TimeoutError", "PROTOCOL_SEQUENCE_TIMEOUT"].includes(error.name) || error.code === "PROTOCOL_SEQUENCE_TIMEOUT") {
+      destroyed = true;
+      connection.destroy();
+    }
+    throw error;
+  } finally { if (!destroyed) connection.release(); }
+}
 
 async function getSnapshot() {
   if (snapshotCache.text && Date.now() - snapshotCache.at < SNAPSHOT_TTL_MS) {
@@ -100,17 +136,22 @@ async function getSnapshot() {
     return null; // sin credenciales: el asistente sigue funcionando sin datos
   }
 
-  const entries = Object.entries(QUERIES);
-  const results = await Promise.allSettled(
-    entries.map(([, sql]) => getPool().query({ sql, timeout: 8000 }))
-  );
+  if (!snapshotLoading) snapshotLoading = loadSnapshot().finally(() => { snapshotLoading = null; });
+  return snapshotLoading;
+}
 
+async function loadSnapshot() {
+  const entries = Object.entries(QUERIES);
+  const deadline = Date.now() + SNAPSHOT_BUDGET_MS;
   const data = {};
-  results.forEach((r, i) => {
-    const key = entries[i][0];
-    if (r.status === "fulfilled") data[key] = r.value[0];
-    else console.error(`Consulta "${key}" falló:`, r.reason?.message || r.reason);
-  });
+  let next = 0;
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (next < entries.length && Date.now() < deadline) {
+      const [key, sql] = entries[next++];
+      try { data[key] = (await snapshotQuery(sql, deadline))[0]; }
+      catch (error) { console.error("[assistant snapshot]", key, error.code || error.name || "error"); }
+    }
+  }));
   if (!Object.keys(data).length) return null;
 
   if (Array.isArray(data.materiales)) {
@@ -201,6 +242,11 @@ export default async (request, context) => {
     }
 
     while (contents.length && contents[0].role !== "user") contents.shift();
+    let historyChars = contents.reduce((sum, item) => sum + item.parts[0].text.length, 0);
+    while (historyChars > HISTORY_CHAR_LIMIT && contents.length > 1) {
+      historyChars -= contents.shift().parts[0].text.length;
+    }
+    while (contents.length && contents[0].role !== "user") contents.shift();
 
     // Datos reales (si la base falla, seguimos sin ellos)
     let snapshot = null;
@@ -217,7 +263,7 @@ export default async (request, context) => {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
       {
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -231,12 +277,15 @@ export default async (request, context) => {
       }
     );
 
-    const result = await response.json().catch(() => ({}));
+    const result = await response.json().catch(error => {
+      if (["TimeoutError", "AbortError"].includes(error.name)) throw error;
+      return {};
+    });
 
     if (!response.ok) {
-      const detail = result?.error?.message || `Error de Gemini: ${response.status}`;
-      console.error("Error de Gemini:", response.status, detail);
-      return respond(response.status === 429 ? 429 : 502, { error: response.status === 429 ? "Gemini alcanzó su cuota. Inténtalo más tarde." : "Gemini no está disponible en este momento." });
+      console.error("[assistant gemini]", response.status);
+      if (response.status === 504) return respond(504, { code: "GEMINI_DEADLINE_EXCEEDED", error: "Gemini no terminó la respuesta dentro del plazo. Inténtalo más tarde." });
+      return respond(response.status === 429 ? 429 : 502, { code: response.status === 429 ? "GEMINI_QUOTA" : "GEMINI_UNAVAILABLE", error: response.status === 429 ? "Gemini alcanzó su cuota. Inténtalo más tarde." : "Gemini no está disponible en este momento." });
     }
 
     const raw = result?.candidates?.[0]?.content?.parts
@@ -245,13 +294,14 @@ export default async (request, context) => {
       .trim();
 
     if (!raw) {
-      console.error("Respuesta vacía de Gemini:", JSON.stringify(result));
+      console.error("[assistant gemini] empty response");
       return respond(502, { error: "Gemini no devolvió una respuesta." });
     }
 
     return respond(200, { reply: toPlainText(raw), source: "gemini", dataSource: snapshot ? "tidb" : "unavailable" });
   } catch (error) {
-    console.error("Error en BioVolt Assistant:", error);
-    return respond(error.name === "TimeoutError" ? 504 : 500, { error: "El asistente no pudo responder a tiempo. Inténtalo más tarde." });
+    const timeout = ["TimeoutError", "AbortError"].includes(error.name);
+    console.error("[assistant chat]", timeout ? "timeout" : "internal");
+    return respond(timeout ? 504 : 500, { code: timeout ? "ASSISTANT_TIMEOUT" : "ASSISTANT_ERROR", error: timeout ? "El asistente no pudo responder a tiempo. Inténtalo más tarde." : "El asistente no pudo completar la consulta. Inténtalo más tarde." });
   }
 };

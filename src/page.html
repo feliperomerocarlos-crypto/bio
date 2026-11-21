@@ -1061,6 +1061,12 @@ main{padding-top:84px}
         </form>
       </div>
     </section>
+    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="">
+      <h2 class="panel-title" id="vivora-title">Habla con el avatar</h2>
+      <p class="small muted" id="vivora-status">La conversación por voz estará disponible cuando se conecte Vivora.</p>
+      <button class="btn btn-outline" id="vivora-toggle" type="button" aria-expanded="false" aria-controls="vivora-studio" hidden>Abrir avatar</button>
+      <div id="vivora-studio" hidden></div>
+    </section>
   </div>
 </div>
 
@@ -1489,18 +1495,19 @@ function localAnswer(msg){
 async function getAIResponse(userMessage, history){
   try {
     const res = await fetch('/api/chat', {
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(50000),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userMessage, history: history.filter(m => m.source !== 'local') })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok) { const error = new Error(data.error || ('HTTP ' + res.status)); error.status = res.status; throw error; }
     if (!data.reply) throw new Error('La función no devolvió una respuesta.');
     return { text: data.reply, source: 'gemini' };
   } catch (err) {
     console.error('IA no disponible, usando base local:', err);
-    return { text: '[' + (dataSource === 'demo' ? 'Datos demostrativos' : 'Última lectura disponible') + '] ' + localAnswer(userMessage), source: 'local' };
+    const reason = err.status === 429 ? 'Gemini alcanzó su límite de uso. ' : err.status === 504 || ['TimeoutError','AbortError'].includes(err.name) ? 'Gemini no respondió dentro del tiempo de espera. ' : 'No se pudo obtener una respuesta de Gemini. ';
+    return { text: reason + '[' + (dataSource === 'demo' ? 'Datos demostrativos' : 'Última lectura disponible') + '] ' + localAnswer(userMessage), source: 'local' };
   }
 }
 
@@ -1771,6 +1778,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 </script>
 <script src="assets/enhancements.js"></script>
 <script src="assets/helpdesk.js"></script>
+<script src="assets/vivora.js"></script>
 <script src="assets/scene-cdn.js"></script>
 <script src="assets/cinematic.js"></script>
 <script src="assets/experience.js"></script>
