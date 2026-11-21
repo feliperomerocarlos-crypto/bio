@@ -4,11 +4,38 @@
   const status = document.querySelector('#voiceStatus');
   const chat = mic.closest('.chat');
   const input = document.querySelector('#chatInput');
+  const mouth = createAvatarMouth(chat.querySelector('.chat-head .voice-avatar'));
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
   const canSpeak = Boolean(synth && window.SpeechSynthesisUtterance);
   const canListen = Boolean(window.isSecureContext && Recognition);
   const hint = canListen ? 'Pulsa Hablar y di tu pregunta.' : 'Puedes escribir tu pregunta. El dictado no está disponible en este navegador.';
+  const voiceSelect = document.querySelector('#assistantVoice');
+  const voiceChoice = document.querySelector('#voiceChoice');
+  let spanishVoices = [];
+  let savedVoice = '';
+  try { savedVoice = localStorage.getItem('bvAssistantVoice') || ''; } catch {}
+
+  function refreshVoices() {
+    spanishVoices = (synth?.getVoices?.() || []).filter(voice => /^es(?:[-_]|$)/i.test(voice.lang));
+    // SpeechSynthesisVoice expone el nombre y el idioma, pero carece de un campo de género.
+    const masculine = /\b(?:male|masculino|hombre|gonzalo|alonso|pablo|raul|diego|jorge|carlos|andres|alvaro|antonio|juan|miguel|carmelo|martin)\b/i;
+    const named = spanishVoices.filter(v => masculine.test(v.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+    const preferred = named.find(v => /^es[-_]CO$/i.test(v.lang)) || named[0];
+    voiceSelect.replaceChildren(new Option('Predeterminada del dispositivo', ''));
+    for (const voice of spanishVoices) voiceSelect.add(new Option(voice.name, voice.voiceURI));
+    voiceSelect.value = spanishVoices.some(v => v.voiceURI === savedVoice) ? savedVoice :
+      savedVoice === 'default' ? '' : preferred?.voiceURI || '';
+    voiceChoice.hidden = !canSpeak || !spanishVoices.length;
+  }
+
+  voiceSelect.addEventListener('change', () => {
+    savedVoice = voiceSelect.value || 'default';
+    try { localStorage.setItem('bvAssistantVoice', savedVoice); } catch {}
+  });
+  refreshVoices();
+  synth?.addEventListener?.('voiceschanged', refreshVoices);
+
   let recognition;
   let utterance;
   let revision = 0;
@@ -26,6 +53,7 @@
 
   function stop() {
     revision++;
+    mouth.stop();
     const previous = recognition;
     recognition = null;
     if (previous) previous.abort();
@@ -38,16 +66,22 @@
 
   function speak(text) {
     const speech = new SpeechSynthesisUtterance(text);
-    speech.lang = 'es-CO';
+    const selectedVoice = spanishVoices.find(voice => voice.voiceURI === voiceSelect.value);
+    if (selectedVoice) speech.voice = selectedVoice;
+    speech.lang = selectedVoice?.lang || 'es-CO';
     utterance = speech;
+    speech.onstart = speech.onresume = () => { if (utterance === speech) mouth.start(); };
+    speech.onpause = () => { if (utterance === speech) mouth.stop(); };
+    speech.onboundary = event => { if (utterance === speech && event.name === 'word') mouth.word(); };
     speech.onend = speech.onerror = event => {
       if (utterance !== speech) return;
+      mouth.stop();
       utterance = null;
       update(event.type === 'error' ? 'La lectura no está disponible. Puedes leer la respuesta en el chat.' : hint);
     };
     update('Leyendo la respuesta…');
     try { synth.speak(speech); }
-    catch { utterance = null; update('La respuesta está disponible en el chat.'); }
+    catch { mouth.stop(); utterance = null; update('La respuesta está disponible en el chat.'); }
   }
 
   read.addEventListener('click', () => {

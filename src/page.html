@@ -1056,6 +1056,9 @@ main{padding-top:84px}
         <div class="voice-tools" aria-label="Controles de voz" role="group">
           <button type="button" class="btn btn-outline btn-sm" id="voiceMic" hidden>Hablar</button>
           <button type="button" class="btn btn-outline btn-sm" id="voiceRead" hidden>Escuchar respuesta</button>
+          <label class="small voice-choice" id="voiceChoice" hidden>Voz
+            <select class="select" id="assistantVoice"></select>
+          </label>
           <span id="voiceStatus" class="small muted" role="status"></span>
         </div>
         <div class="chat-chips" id="chatChips" aria-label="Sugerencias"></div>
@@ -1786,6 +1789,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 <script src="assets/enhancements.js"></script>
 <script src="assets/helpdesk.js"></script>
 <script src="assets/vivora.js"></script>
+<script src="assets/avatar-mouth.js"></script>
 <script src="assets/assistant-voice.js"></script>
 <script src="assets/scene-cdn.js"></script>
 <script src="assets/cinematic.js"></script>
