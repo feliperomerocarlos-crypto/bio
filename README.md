@@ -2,7 +2,7 @@
 
 ## Paneles de lectura y avatar
 
-Las tarjetas, tablas y filtros recuperan superficies sólidas sobre el fondo animado. En Asistente, el panel de Vivora acepta la URL del estudio en el atributo `data-vivora-url` de `src/page.html`. La revisión descargable usa datos de demostración. [Configurar Vivora y verificar el micrófono](docs/VIVORA.md).
+Las tarjetas, tablas y filtros recuperan superficies sólidas sobre el fondo animado. En Asistente, **Hablar** dicta una pregunta en español y la envía al chat. El navegador puede leer la respuesta en voz alta. **Escuchar respuesta** también funciona después de escribir si hay síntesis de voz disponible. El micrófono requiere permiso y un navegador compatible. El avatar del asistente se guarda en `assets/asistente.webp` y se incluye en las dos versiones del HTML. El estudio externo de Vivora solo aparece si se configura su URL en `data-vivora-url` de `src/page.html`. La revisión descargable usa datos de demostración. [Configurar Vivora y verificar el micrófono](docs/VIVORA.md).
 
 ## Revisión anterior de tipografía y cifras
 

@@ -16,6 +16,7 @@
   if ((!localTest && url.protocol !== 'https:') || url.username || url.password) return;
 
   status.textContent = 'Abre Vivora e inicia sesión para hablar con el avatar. El navegador te pedirá permiso al usar el micrófono.';
+  panel.hidden = false;
   button.hidden = false;
   button.addEventListener('click', () => {
     const open = studio.hidden;
