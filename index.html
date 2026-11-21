@@ -1089,12 +1089,17 @@ html[data-bv-motion="off"] .bv-story-head>div:first-child,html[data-bv-motion="o
 .voice-tools{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;margin-bottom:12px}
 .voice-tools [hidden],.vivora-panel[hidden]{display:none!important}
 .voice-avatar{display:grid;place-items:center;width:48px;height:48px;flex:none;background:#11281b;border:1px solid #55755a;border-radius:50%}
-.voice-avatar{overflow:hidden}
+.voice-avatar{overflow:hidden;position:relative}
+.chat-head .voice-avatar{width:clamp(54px,7vw,72px);height:clamp(54px,7vw,72px)}
+.voice-avatar canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.voice-avatar canvas[hidden],html[data-bv-motion="off"] .voice-avatar canvas{display:none}
 .voice-avatar img{display:block;width:100%;height:100%;object-fit:cover}
 .voice-avatar-welcome{width:88px;height:88px}
 .chat[data-voice="listening"] .voice-avatar,.chat[data-voice="speaking"] .voice-avatar{border-color:#a4e636;box-shadow:0 0 0 4px #86c64b36}
-html:not([data-bv-motion="off"]) .chat[data-voice="speaking"] .voice-avatar img{animation:bv-avatar-voice 1.2s ease-in-out infinite alternate}
-@keyframes bv-avatar-voice{to{transform:translateY(-1px) scale(1.06)}}
+
+.voice-tools .voice-choice{display:flex;align-items:center;gap:6px;max-width:100%;min-width:0}
+.voice-tools .voice-choice[hidden]{display:none}
+.voice-choice select{max-width:min(220px,100%);min-width:0}
 
 </style>
 <style>
@@ -1405,6 +1410,9 @@ body{letter-spacing:-.012em}
         <div class="voice-tools" aria-label="Controles de voz" role="group">
           <button type="button" class="btn btn-outline btn-sm" id="voiceMic" hidden>Hablar</button>
           <button type="button" class="btn btn-outline btn-sm" id="voiceRead" hidden>Escuchar respuesta</button>
+          <label class="small voice-choice" id="voiceChoice" hidden>Voz
+            <select class="select" id="assistantVoice"></select>
+          </label>
           <span id="voiceStatus" class="small muted" role="status"></span>
         </div>
         <div class="chat-chips" id="chatChips" aria-label="Sugerencias"></div>
@@ -2597,17 +2605,117 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 
 </script>
 <script>
+// Poses del retrato de BioVolt. Las coordenadas corresponden a su recorte cuadrado.
+function createAvatarMouth(portrait) {
+  const size = 192;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  canvas.setAttribute('aria-hidden', 'true');
+  let brush;
+  let poses;
+  let timer;
+  let beat = 0;
+  const rhythm = [1, 3, 5, 2, 0, 2, 4, 3, 1, 0, 3, 5, 4, 2, 0];
+
+  function prepare() {
+    if (poses) return true;
+    const image = portrait.querySelector('img');
+    if (!image.naturalWidth) return false;
+    brush = canvas.getContext('2d');
+    if (!brush) return false;
+    const original = document.createElement('canvas');
+    original.width = original.height = size;
+    const ctx = original.getContext('2d');
+    const side = Math.min(image.naturalWidth, image.naturalHeight);
+    ctx.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, 0, 0, size, size);
+    poses = [original];
+    // Comprime solo los labios y estira la piel contigua hacia el mentón.
+    const left = Math.round(size * .405);
+    const right = Math.round(size * .644);
+    const lowerLip = Math.round(size * .595);
+    const chin = Math.round(size * .654);
+    for (let level = 1; level <= 5; level++) {
+      const frame = original.cloneNode();
+      const paint = frame.getContext('2d');
+      paint.drawImage(original, 0, 0);
+      for (let x = left; x < right; x++) {
+        const t = (x - left) / (right - left);
+        const upperLip = Math.round(size * (.458 + .041 * t));
+        const height = lowerLip - upperLip;
+        const taper = Math.min(1, t * 6, (1 - t) * 6);
+        const shift = Math.round(height * .82 * level / 5 * taper);
+        paint.drawImage(original, x, upperLip, 1, height, x, upperLip, 1, height - shift);
+        paint.drawImage(original, x, lowerLip, 1, chin - lowerLip, x, lowerLip - shift, 1, chin - lowerLip + shift);
+      }
+      poses.push(frame);
+    }
+    portrait.append(canvas);
+    return true;
+  }
+
+  function draw() {
+    if (document.documentElement.dataset.bvMotion === 'off') return;
+    brush.drawImage(poses[rhythm[beat]], 0, 0);
+    beat = (beat + 1) % rhythm.length;
+  }
+
+  return {
+    start() {
+      if (timer || !prepare()) return;
+      beat = 0;
+      canvas.hidden = false;
+      draw();
+      timer = setInterval(draw, 80);
+    },
+    word() { beat = 0; },
+    stop() {
+      clearInterval(timer);
+      timer = undefined;
+      canvas.hidden = true;
+    }
+  };
+}
+
+</script>
+<script>
 (() => {
   const mic = document.querySelector('#voiceMic');
   const read = document.querySelector('#voiceRead');
   const status = document.querySelector('#voiceStatus');
   const chat = mic.closest('.chat');
   const input = document.querySelector('#chatInput');
+  const mouth = createAvatarMouth(chat.querySelector('.chat-head .voice-avatar'));
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
   const canSpeak = Boolean(synth && window.SpeechSynthesisUtterance);
   const canListen = Boolean(window.isSecureContext && Recognition);
   const hint = canListen ? 'Pulsa Hablar y di tu pregunta.' : 'Puedes escribir tu pregunta. El dictado no está disponible en este navegador.';
+  const voiceSelect = document.querySelector('#assistantVoice');
+  const voiceChoice = document.querySelector('#voiceChoice');
+  let spanishVoices = [];
+  let savedVoice = '';
+  try { savedVoice = localStorage.getItem('bvAssistantVoice') || ''; } catch {}
+
+  function refreshVoices() {
+    spanishVoices = (synth?.getVoices?.() || []).filter(voice => /^es(?:[-_]|$)/i.test(voice.lang));
+    // SpeechSynthesisVoice expone el nombre y el idioma, pero carece de un campo de género.
+    const masculine = /\b(?:male|masculino|hombre|gonzalo|alonso|pablo|raul|diego|jorge|carlos|andres|alvaro|antonio|juan|miguel|carmelo|martin)\b/i;
+    const named = spanishVoices.filter(v => masculine.test(v.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+    const preferred = named.find(v => /^es[-_]CO$/i.test(v.lang)) || named[0];
+    voiceSelect.replaceChildren(new Option('Predeterminada del dispositivo', ''));
+    for (const voice of spanishVoices) voiceSelect.add(new Option(voice.name, voice.voiceURI));
+    voiceSelect.value = spanishVoices.some(v => v.voiceURI === savedVoice) ? savedVoice :
+      savedVoice === 'default' ? '' : preferred?.voiceURI || '';
+    voiceChoice.hidden = !canSpeak || !spanishVoices.length;
+  }
+
+  voiceSelect.addEventListener('change', () => {
+    savedVoice = voiceSelect.value || 'default';
+    try { localStorage.setItem('bvAssistantVoice', savedVoice); } catch {}
+  });
+  refreshVoices();
+  synth?.addEventListener?.('voiceschanged', refreshVoices);
+
   let recognition;
   let utterance;
   let revision = 0;
@@ -2625,6 +2733,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 
   function stop() {
     revision++;
+    mouth.stop();
     const previous = recognition;
     recognition = null;
     if (previous) previous.abort();
@@ -2637,16 +2746,22 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 
   function speak(text) {
     const speech = new SpeechSynthesisUtterance(text);
-    speech.lang = 'es-CO';
+    const selectedVoice = spanishVoices.find(voice => voice.voiceURI === voiceSelect.value);
+    if (selectedVoice) speech.voice = selectedVoice;
+    speech.lang = selectedVoice?.lang || 'es-CO';
     utterance = speech;
+    speech.onstart = speech.onresume = () => { if (utterance === speech) mouth.start(); };
+    speech.onpause = () => { if (utterance === speech) mouth.stop(); };
+    speech.onboundary = event => { if (utterance === speech && event.name === 'word') mouth.word(); };
     speech.onend = speech.onerror = event => {
       if (utterance !== speech) return;
+      mouth.stop();
       utterance = null;
       update(event.type === 'error' ? 'La lectura no está disponible. Puedes leer la respuesta en el chat.' : hint);
     };
     update('Leyendo la respuesta…');
     try { synth.speak(speech); }
-    catch { utterance = null; update('La respuesta está disponible en el chat.'); }
+    catch { mouth.stop(); utterance = null; update('La respuesta está disponible en el chat.'); }
   }
 
   read.addEventListener('click', () => {

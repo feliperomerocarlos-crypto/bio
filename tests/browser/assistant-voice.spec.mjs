@@ -8,7 +8,12 @@ test('dictado en español comparte el chat y permite detener la lectura', async 
     };
     window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
     Object.defineProperty(window, 'speechSynthesis', {value: {
-      speak(utterance) { window.testSpoken = utterance.text; },
+      getVoices() { return [
+        {name:'Helena', lang:'es-ES', voiceURI:'es-helena'},
+        {name:'Pablo', lang:'es-ES', voiceURI:'es-pablo'},
+        {name:'Gonzalo', lang:'es-CO', voiceURI:'co-gonzalo'}
+      ]; },
+      speak(utterance) { window.testSpoken = utterance.text; window.testSpeech = utterance; },
       cancel() { window.testStopped = true; }
     }});
   });
@@ -28,8 +33,26 @@ test('dictado en español comparte el chat y permite detener la lectura', async 
   await expect(page.locator('#voiceRead')).toHaveText('Detener lectura');
   expect(await page.evaluate(() => window.testSpoken)).toBe('Es materia orgánica.');
   expect(requests).toBe(1);
+  expect(await page.evaluate(() => window.testSpeech.voice.voiceURI)).toBe('co-gonzalo');
+  const mouth = page.locator('.chat-head .voice-avatar canvas');
+  await expect(mouth).toHaveCount(0);
+  await page.evaluate(() => window.testSpeech.onstart());
+  await expect(mouth).toBeVisible();
+  const pixels = () => mouth.evaluate(canvas => canvas.toDataURL());
+  const initial = await pixels();
+  await expect.poll(pixels).not.toBe(initial);
+  await page.evaluate(() => window.testSpeech.onpause());
+  await expect(mouth).toBeHidden();
+  await page.evaluate(() => window.testSpeech.onresume());
+  await expect(mouth).toBeVisible();
   await page.locator('#voiceRead').click();
   expect(await page.evaluate(() => window.testStopped)).toBe(true);
+  await expect(mouth).toBeHidden();
+  await page.locator('#assistantVoice').selectOption('es-pablo');
+  await page.locator('#voiceRead').click();
+  expect(await page.evaluate(() => window.testSpeech.voice.voiceURI)).toBe('es-pablo');
+  await page.evaluate(() => { window.testSpeech.onstart(); window.testSpeech.onend({type:'end'}); });
+  await expect(mouth).toBeHidden();
   await page.locator('#voiceMic').click();
   await page.evaluate(() => window.testRecognition.onerror({error:'not-allowed'}));
   await expect(page.locator('#voiceStatus')).toContainText('bloqueado');
