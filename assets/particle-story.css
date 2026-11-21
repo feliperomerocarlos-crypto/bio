@@ -133,7 +133,9 @@ html[data-bv-motion="off"] .bv-story-head>div:first-child,html[data-bv-motion="o
 .voice-tools{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;margin-bottom:12px}
 .voice-tools [hidden],.vivora-panel[hidden]{display:none!important}
 .voice-avatar{display:grid;place-items:center;width:48px;height:48px;flex:none;background:#11281b;border:1px solid #55755a;border-radius:50%}
-.voice-avatar svg{width:39px;height:32px}
+.voice-avatar{overflow:hidden}
+.voice-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.voice-avatar-welcome{width:88px;height:88px}
 .chat[data-voice="listening"] .voice-avatar,.chat[data-voice="speaking"] .voice-avatar{border-color:#a4e636;box-shadow:0 0 0 4px #86c64b36}
-html:not([data-bv-motion="off"]) .chat[data-voice="speaking"] .voice-avatar svg{animation:bv-avatar-voice 1.2s ease-in-out infinite alternate}
+html:not([data-bv-motion="off"]) .chat[data-voice="speaking"] .voice-avatar img{animation:bv-avatar-voice 1.2s ease-in-out infinite alternate}
 @keyframes bv-avatar-voice{to{transform:translateY(-1px) scale(1.06)}}

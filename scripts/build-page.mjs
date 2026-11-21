@@ -1,6 +1,8 @@
 import {readFile,writeFile} from 'node:fs/promises';
 // Fuente editable conservada; el archivo público no depende de assets locales.
 let html=await readFile('src/page.html','utf8');
+const avatar = await readFile('assets/asistente.webp');
+html = html.replaceAll('src="assets/asistente.webp"', 'src="data:image/webp;base64,' + avatar.toString('base64') + '"');
 for(const match of [...html.matchAll(/<link rel="stylesheet" href="(assets\/[\w.-]+\.css)">/g)]){
  let css=await readFile(match[1],'utf8');
  for(const font of [...css.matchAll(/url\("fonts\/([\w.-]+\.woff2)"\)/g)]){
