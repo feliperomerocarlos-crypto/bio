@@ -1096,13 +1096,24 @@ html[data-theme="light"] .bv-story-head .h-lg{text-shadow:0 4px 35px #f5fff288}
 .bv-story-chapter .bv-brief-stats{border:0}
 .bv-section-rail{background:transparent;border:0;backdrop-filter:none}
 .footer{background:transparent;border:0}
-/* Superficies de lectura solo en soporte, conversación y generación de reportes. */
+/* Paneles de lectura sobre la escena continua. */
 @media screen{
- .bv-story-workspace{--bv-panel-bg:rgba(7,18,13,.72);--bv-panel-edge:rgba(142,183,153,.23);--bv-panel-padding:24px}
- html[data-theme="light"] .bv-story-workspace{--bv-panel-bg:rgba(248,253,246,.8);--bv-panel-edge:rgba(39,105,54,.2)}
+ :root{--bv-panel-bg:#0d1b14;--bv-panel-edge:rgba(142,183,153,.23);--bv-panel-padding:24px}
+ html[data-theme="light"]{--bv-panel-bg:#f6faf4;--bv-panel-edge:rgba(39,105,54,.2)}
+ dialog,
+ .bv-story-workspace :is(.grid>.card,article.card,.faq,.vivora-panel),
+ .bv-story-workspace>:is(.card,.toolbar),
  #view-ayuda .bv-story-workspace :is(.access-panel,.help-form,.help-layout>section),
  #view-asistente .bv-story-workspace .chat,
- #view-analitica .bv-story-workspace .card:has(#reportType){background:var(--bv-panel-bg);border:1px solid var(--bv-panel-edge);border-radius:22px;padding:var(--bv-panel-padding);box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+ #view-analitica .bv-story-workspace .card:has(#reportType){background:var(--bv-panel-bg);border:1px solid var(--bv-panel-edge);border-radius:22px;padding:var(--bv-panel-padding);text-shadow:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+ dialog{padding:0}
+ .bv-story-workspace :is(.card.flush,.faq){padding:var(--bv-panel-padding)}
+ .bv-story-workspace :is(.card,.faq,.toolbar){min-width:0}
+ .bv-story-workspace .card.flush>.card-head{padding-inline:0!important}
+ .bv-story-workspace .faq-item:last-child{border-bottom:0}
+ .vivora-frame{display:block;width:100%;height:clamp(440px,72svh,820px);border:0;border-radius:12px;background:var(--background);margin-top:16px}
+ .vivora-panel .btn{margin-top:12px}
+ .vivora-panel [hidden]{display:none}
  #view-ayuda .help-layout{gap:24px}
  #view-ayuda .help-form{top:92px}
  #view-ayuda .help-layout>section{min-width:0}
@@ -1130,8 +1141,8 @@ html[data-theme="light"] .bv-story-head .h-lg{text-shadow:0 4px 35px #f5fff288}
  .bv-story-head .bv-brief-stats .stat-value{font-size:24px}
  .bv-story-head .gesture.bv-portal{top:auto;bottom:10%;width:100%;height:38%}
  .bv-story-workspace{padding:16px 0}
- .bv-story-workspace .card{padding:18px 0}
- .bv-story-workspace .card.flush{padding:0}
+ .bv-story-workspace .grid.stats{gap:12px}
+ .bv-story-workspace .grid.stats>.card{padding:14px;overflow-wrap:anywhere}
  .bv-story-workspace table{font-size:13px}
  .bv-story-workspace td{padding-block:15px}
  .bv-story-workspace .grid{gap:24px}
@@ -1456,6 +1467,12 @@ body{letter-spacing:-.012em}
           <button class="btn btn-primary btn-round" type="submit" id="chatSend" aria-label="Enviar mensaje"></button>
         </form>
       </div>
+    </section>
+    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="">
+      <h2 class="panel-title" id="vivora-title">Habla con el avatar</h2>
+      <p class="small muted" id="vivora-status">La conversación por voz estará disponible cuando se conecte Vivora.</p>
+      <button class="btn btn-outline" id="vivora-toggle" type="button" aria-expanded="false" aria-controls="vivora-studio" hidden>Abrir avatar</button>
+      <div id="vivora-studio" hidden></div>
     </section>
   </div>
 </div>
@@ -2586,6 +2603,46 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
   });
   window.BioVoltHelpdesk={render,load,summary:()=>({scope:queue.scope,stats:queue.stats})};
   render();load(true);
+})();
+
+</script>
+<script>
+(() => {
+  const panel = document.querySelector('[data-vivora-url]');
+  if (!panel?.dataset.vivoraUrl.trim()) return;
+  const button = panel.querySelector('#vivora-toggle');
+  const studio = panel.querySelector('#vivora-studio');
+  const status = panel.querySelector('#vivora-status');
+  let url;
+  try {
+    url = new URL(panel.dataset.vivoraUrl);
+  } catch {
+    return;
+  }
+
+  const local = host => ['localhost', '127.0.0.1', '[::1]'].includes(host);
+  const localTest = url.protocol === 'http:' && local(url.hostname) && local(location.hostname);
+  if ((!localTest && url.protocol !== 'https:') || url.username || url.password) return;
+
+  status.textContent = 'Abre Vivora e inicia sesión para hablar con el avatar. El navegador te pedirá permiso al usar el micrófono.';
+  button.hidden = false;
+  button.addEventListener('click', () => {
+    const open = studio.hidden;
+    if (open) {
+      const frame = document.createElement('iframe');
+      frame.title = 'Vivora · Conversación por voz con el avatar';
+      frame.className = 'vivora-frame';
+      frame.allow = "microphone 'src'; camera 'none'";
+      frame.referrerPolicy = 'strict-origin';
+      frame.src = url.href;
+      studio.append(frame);
+    } else {
+      studio.replaceChildren();
+    }
+    studio.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    button.textContent = open ? 'Cerrar avatar' : 'Abrir avatar';
+  });
 })();
 
 </script>

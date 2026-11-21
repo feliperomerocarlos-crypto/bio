@@ -1061,6 +1061,12 @@ main{padding-top:84px}
         </form>
       </div>
     </section>
+    <section class="card vivora-panel" aria-labelledby="vivora-title" data-vivora-url="">
+      <h2 class="panel-title" id="vivora-title">Habla con el avatar</h2>
+      <p class="small muted" id="vivora-status">La conversación por voz estará disponible cuando se conecte Vivora.</p>
+      <button class="btn btn-outline" id="vivora-toggle" type="button" aria-expanded="false" aria-controls="vivora-studio" hidden>Abrir avatar</button>
+      <div id="vivora-studio" hidden></div>
+    </section>
   </div>
 </div>
 
@@ -1772,6 +1778,7 @@ setInterval(() => { if (!document.hidden && !dlg.open && window.BioVoltNavigatio
 </script>
 <script src="assets/enhancements.js"></script>
 <script src="assets/helpdesk.js"></script>
+<script src="assets/vivora.js"></script>
 <script src="assets/scene-cdn.js"></script>
 <script src="assets/cinematic.js"></script>
 <script src="assets/experience.js"></script>

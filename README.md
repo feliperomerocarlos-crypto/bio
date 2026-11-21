@@ -1,6 +1,10 @@
 # BioVolt AI
 
-## Revisión actual: tipografía y cifras más limpias
+## Paneles de lectura y avatar
+
+Las tarjetas, tablas y filtros recuperan superficies sólidas sobre el fondo animado. En Asistente, el panel de Vivora acepta la URL del estudio en el atributo `data-vivora-url` de `src/page.html`. La revisión descargable usa datos de demostración. [Configurar Vivora y verificar el micrófono](docs/VIVORA.md).
+
+## Revisión anterior de tipografía y cifras
 
 `dev/biovolt-tipografia-numeros` incorpora Manrope variable, alojada localmente y embebida también en la copia descargable. Sustituye el tablero de dígitos por una entrada suave de la cifra completa, sin valores aleatorios ni cambios de formato/unidad. Mantiene los paneles translúcidos selectivos y el movimiento de partículas. Fuente bajo SIL OFL 1.1, incluida en `assets/fonts`. Validación: 75 pruebas de navegador y 36 de lógica aprobadas; Manrope incrustada en el PDF de prueba. Detalles y validación en [docs/TIPOGRAFIA-NUMEROS.md](docs/TIPOGRAFIA-NUMEROS.md). Esta revisión sigue local, sin subida ni publicación.
 

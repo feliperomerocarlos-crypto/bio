@@ -3,6 +3,8 @@ await import('./build-page.mjs');
 let html=await readFile('index.html','utf8');
 const vendors=(await Promise.all(['three-0.160.0.min.js'].map(n=>readFile('assets/vendor/'+n,'utf8')))).join('\n');
 html=html.replace(/<script data-bv-cdn>[\s\S]*?<\/script>/,()=>'<script>\n'+vendors+'\nwindow.BioVoltSceneEngine={THREE:window.THREE};window.BioVoltEngineReady=Promise.resolve(window.BioVoltSceneEngine);\n</script>');
+// La revisión descargable siempre funciona sin servicios externos.
+html=html.replace(/data-vivora-url="[^"]*"/, 'data-vivora-url=""');
 html=html.replace(/\bfetch\s*\(/g,'bioPreviewOffline(');
 const demo=await readFile('revision/demo-api.js','utf8');html=html.replace('<script>',()=>'<script>\n'+demo+'\n</script>\n<script>');
 html=html.replaceAll('Respuesta de Gemini','Respuesta IA simulada').replaceAll('Agente IA · Gemini','Agente IA · Simulación local');
