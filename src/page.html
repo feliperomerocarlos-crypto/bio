@@ -1489,18 +1489,19 @@ function localAnswer(msg){
 async function getAIResponse(userMessage, history){
   try {
     const res = await fetch('/api/chat', {
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(50000),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userMessage, history: history.filter(m => m.source !== 'local') })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok) { const error = new Error(data.error || ('HTTP ' + res.status)); error.status = res.status; throw error; }
     if (!data.reply) throw new Error('La función no devolvió una respuesta.');
     return { text: data.reply, source: 'gemini' };
   } catch (err) {
     console.error('IA no disponible, usando base local:', err);
-    return { text: '[' + (dataSource === 'demo' ? 'Datos demostrativos' : 'Última lectura disponible') + '] ' + localAnswer(userMessage), source: 'local' };
+    const reason = err.status === 429 ? 'Gemini alcanzó su límite de uso. ' : err.status === 504 || ['TimeoutError','AbortError'].includes(err.name) ? 'Gemini no respondió dentro del tiempo de espera. ' : 'No se pudo obtener una respuesta de Gemini. ';
+    return { text: reason + '[' + (dataSource === 'demo' ? 'Datos demostrativos' : 'Última lectura disponible') + '] ' + localAnswer(userMessage), source: 'local' };
   }
 }
 
